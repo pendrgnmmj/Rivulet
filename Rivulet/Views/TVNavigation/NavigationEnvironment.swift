@@ -27,7 +27,6 @@ enum SidebarTab: Hashable {
     case providerLibrary(providerID: String, libraryID: String)
     /// One server's video playlists, by provider id.
     case playlists(providerID: String)
-    case liveTV(sourceId: String?)
     case settings
     /// The profile slot's pill: Select opens Now Playing, never a tab.
     case nowPlaying

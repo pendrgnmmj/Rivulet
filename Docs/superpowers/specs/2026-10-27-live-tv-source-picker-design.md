@@ -1,5 +1,8 @@
 # Live TV source picker: one row per app, Tvheadend support
 
+> **Removed 2026-11-07:** This feature was removed in the Plex-only fork. See
+> `Docs/superpowers/plans/2026-11-07-plex-only-strip-down.md`.
+
 Date: 2026-10-27. Issue #415 (Tvheadend).
 
 ## Why

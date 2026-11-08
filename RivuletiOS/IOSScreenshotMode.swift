@@ -7,7 +7,7 @@ import Foundation
 /// App Store screenshot mode (`tools/screenshots/shoot.sh`), DEBUG only. Launch args:
 /// `-screenshotToken T -screenshotServer URL` sign in and show only libraries titled
 /// "…-demo" (suffix stripped); `-screenshotTab` and `-screenshotOpen <library or title>`
-/// pick the state to shoot; `-screenshotLiveTV` adds the demo Live TV source.
+/// pick the state to shoot.
 enum IOSScreenshotMode {
     private static let defaults = UserDefaults.standard
     static let demoSuffix = "-demo"
@@ -25,13 +25,6 @@ enum IOSScreenshotMode {
         defaults.set(server, forKey: "selectedServerURL")
         defaults.set(true, forKey: "plexHasPersistedSession")
         defaults.set(IOSChangelog.currentVersion, forKey: "lastSeenBuild")
-        // `-screenshotLiveTV <base url>`: the demo source `livetv.py` writes and `shoot.sh` serves.
-        if let base = defaults.string(forKey: "screenshotLiveTV") {
-            let source = LiveTVDataStore.SourceConfiguration(
-                id: "screenshot-demo", type: "m3u", name: "Demo", baseURL: nil,
-                m3uURL: "\(base)/demo.m3u", epgURL: "\(base)/guide.xml", apiToken: nil)
-            defaults.set(try? JSONEncoder().encode([source]), forKey: "liveTVSourceConfigurations")
-        }
     }
 
     /// Only the demo libraries, renamed without the suffix, with the rows and Continue Watching items that belong to them.

@@ -14,11 +14,9 @@ import SwiftData
 /// Represents the type of server connection
 enum ServerType: String, Codable {
     case plex
-    case dispatcharr
-    case genericIPTV
 }
 
-/// Base configuration for any server connection (Plex or IPTV)
+/// Base configuration for a Plex server connection
 @Model
 final class ServerConfiguration {
     @Attribute(.unique) var id: UUID
@@ -30,7 +28,6 @@ final class ServerConfiguration {
 
     // Relationships
     @Relationship(deleteRule: .cascade) var plexServer: PlexServer?
-    @Relationship(deleteRule: .cascade) var iptvSource: IPTVSource?
 
     init(name: String, serverType: ServerType) {
         self.id = UUID()

@@ -7,7 +7,7 @@ import XCTest
 @MainActor
 final class MediaItemCodableTests: XCTestCase {
     func test_decodesJSONWrittenBeforeTheVersionFields() throws {
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(item)) as? [String: Any])
         json.removeValue(forKey: "versionCount")
         json.removeValue(forKey: "editionTitle")

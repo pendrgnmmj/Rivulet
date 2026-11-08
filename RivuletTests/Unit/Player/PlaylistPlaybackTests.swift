@@ -13,7 +13,7 @@ import XCTest
 /// path, so nothing touches a server; a stream with no URL fails its start fast.
 @MainActor
 final class PlaylistPlaybackTests: XCTestCase {
-    private let pid = "jellyfin:srv"
+    private let pid = "plex:srv"
 
     private func item(_ id: String, kind: MediaKind = .movie, season: Int? = nil, number: Int? = nil,
                       offset: TimeInterval = 0) -> MediaItem {
@@ -59,7 +59,7 @@ final class PlaylistPlaybackTests: XCTestCase {
     }
 
     func test_queue_nextIsQueueEntry_notSeasonEpisode() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let e1 = item("e1", kind: .episode, season: 1, number: 1)
         provider.childrenByParent["season1"] = [e1, item("e2", kind: .episode, season: 1, number: 2)]
         let vm = queueVM(provider, [e1, item("m2")], at: 0)
@@ -69,7 +69,7 @@ final class PlaylistPlaybackTests: XCTestCase {
     }
 
     func test_queue_fetchNext_hasNoSideEffect() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let vm = queueVM(provider, [item("m1"), item("m2"), item("m3")], at: 0)
 
         let first = await vm.fetchNextEpisode()
@@ -80,7 +80,7 @@ final class PlaylistPlaybackTests: XCTestCase {
     }
 
     func test_queue_movieEnd_showsUpNext() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let m2 = item("m2")
         let vm = queueVM(provider, [item("m1"), m2], at: 0, next: m2)
 
@@ -91,7 +91,7 @@ final class PlaylistPlaybackTests: XCTestCase {
     }
 
     func test_lastItem_hasNoNext() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let vm = queueVM(provider, [item("m1"), item("m2")], at: 1)
 
         await vm.finishPlayback()
@@ -111,7 +111,7 @@ final class PlaylistPlaybackTests: XCTestCase {
             let current = item("e1", kind: kind, season: 1, number: 1)
             let url = URL(string: "http://media.local/e1")!
             let playback = ProviderPlayback(
-                provider: StubMediaProvider(id: pid, kind: .jellyfin), item: current, detail: detail(current, url: url),
+                provider: StubMediaProvider(id: pid, kind: .plex), item: current, detail: detail(current, url: url),
                 stream: StreamInfo(source: source(url: url), playSessionID: "ps1", trackInfoAvailable: true),
                 extras: PlaybackExtras())
             let vm = UniversalPlayerViewModel(providerPlayback: playback, startOffset: nil)
@@ -129,7 +129,7 @@ final class PlaylistPlaybackTests: XCTestCase {
 
     /// Movies run the end funnel twice: the credits trigger, then `.ended`.
     func test_secondEndPass_doesNotDismissWhileCardShows() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let m2 = item("m2")
         let vm = queueVM(provider, [item("m1"), m2], at: 0, next: m2)
 
@@ -141,7 +141,7 @@ final class PlaylistPlaybackTests: XCTestCase {
     }
 
     func test_nextEntry_startsAtItsResumePoint() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let m2 = item("m2", offset: 30)
         let vm = queueVM(provider, [item("m1"), m2], at: 0, next: m2)
 
@@ -155,7 +155,7 @@ final class PlaylistPlaybackTests: XCTestCase {
 
     /// A pick from the list goes by position, so the same title again still plays.
     func test_queueJump_sameTitleLaterInList() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let m1 = item("m1")
         let vm = queueVM(provider, [m1, item("m2"), m1], at: 0, next: m1)
 
@@ -167,7 +167,7 @@ final class PlaylistPlaybackTests: XCTestCase {
 
     /// A pick mid-item keeps the item it left resumable: stopped at its position, never marked played.
     func test_queueJump_midItem_reportsPositionAndDoesNotMarkPlayed() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let recorder = RecordingReporter()
         provider.reporter = recorder
         let m4 = item("m4")
@@ -182,7 +182,7 @@ final class PlaylistPlaybackTests: XCTestCase {
 
     /// After the credits, a pick still marks the finished item played.
     func test_queueJump_afterCredits_marksPlayed() async {
-        let provider = StubMediaProvider(id: pid, kind: .jellyfin)
+        let provider = StubMediaProvider(id: pid, kind: .plex)
         let m2 = item("m2")
         let vm = queueVM(provider, [item("m1"), m2, item("m3")], at: 0, next: m2)
 

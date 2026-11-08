@@ -33,9 +33,7 @@ final class DownloadGateAndStoredItemTests: XCTestCase {
         XCTAssertFalse(IOSDownloadGate.canDownload(ref("plex:GONE")))
     }
 
-    func test_gate_jellyfinAndEmbyCanDownload_otherIdsCannot() {
-        XCTAssertTrue(IOSDownloadGate.canDownload(ref("jellyfin:srv")))
-        XCTAssertTrue(IOSDownloadGate.canDownload(ref("emby:srv")))
+    func test_gate_unparseableIdsCannotDownload() {
         XCTAssertFalse(IOSDownloadGate.canDownload(ref("tmdb")))
         XCTAssertFalse(IOSDownloadGate.canDownload(ref("")))
     }

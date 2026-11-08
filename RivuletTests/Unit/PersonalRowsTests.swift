@@ -70,18 +70,18 @@ final class PersonalRowsTests: XCTestCase {
     /// One request per server and kind, from every library of that kind, on servers with favorites.
     func test_requests_groupLibrariesPerServerAndKind() {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
         jf.favoritesSupported = true
         plex.favoritesSupported = true
-        let none = StubMediaProvider(id: "emby:x", kind: .emby)
+        let none = StubMediaProvider(id: "plex:x", kind: .plex)
         let requests = PersonalRows.requests(
             libraries: [(plex, library("1", .movies, provider: "plex:a"), "1"),
                         (plex, library("2", .movies, provider: "plex:a"), "2"),
                         (plex, library("3", .shows, provider: "plex:a"), "3"),
-                        (jf, library("m", .movies, provider: "jellyfin:s"), "jellyfin:s/m"),
-                        (none, library("e", .movies, provider: "emby:x"), "emby:x/e")],
+                        (jf, library("m", .movies, provider: "plex:s"), "plex:s/m"),
+                        (none, library("e", .movies, provider: "plex:x"), "plex:x/e")],
             kinds: [.movies])
-        XCTAssertEqual(requests.map(\.provider.id), ["plex:a", "jellyfin:s"])
+        XCTAssertEqual(requests.map(\.provider.id), ["plex:a", "plex:s"])
         XCTAssertEqual(requests[0].libraries.map(\.id), ["1", "2"])
         XCTAssertEqual(requests[0].libraryKey, "1", "placed with the first of its libraries")
     }
@@ -101,9 +101,9 @@ final class PersonalRowsTests: XCTestCase {
     func test_shelfIdentifier_dropsTheSelectedServersPrefixOnly() {
         XCTAssertEqual(HomeRowSettings.identifier(ofShelf: "plex:a|movie.recentlyadded.1", selectedProviderID: "plex:a"),
                        "movie.recentlyadded.1")
-        XCTAssertEqual(HomeRowSettings.identifier(ofShelf: "jellyfin:s|m.recentlyAdded", selectedProviderID: "plex:a"),
-                       "jellyfin:s|m.recentlyAdded")
-        XCTAssertEqual(HomeRowSettings.continueWatchingIdentifiers(hasSelectedPlex: true, otherProviderIDs: ["jellyfin:s"]),
-                       ["continueWatching", "jellyfin:s|continueWatching"])
+        XCTAssertEqual(HomeRowSettings.identifier(ofShelf: "plex:s|m.recentlyAdded", selectedProviderID: "plex:a"),
+                       "plex:s|m.recentlyAdded")
+        XCTAssertEqual(HomeRowSettings.continueWatchingIdentifiers(hasSelectedPlex: true, otherProviderIDs: ["plex:s"]),
+                       ["continueWatching", "plex:s|continueWatching"])
     }
 }

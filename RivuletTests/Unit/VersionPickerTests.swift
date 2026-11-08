@@ -22,7 +22,7 @@ final class VersionPickerTests: XCTestCase {
     }
 
     private func detail(_ sources: [MediaSource]) -> MediaItemDetail {
-        MediaItemDetail(item: JellyfinFixtures.mediaItem("m1"), tagline: nil, genres: [], studios: [], cast: [],
+        MediaItemDetail(item: MediaItemFixtures.mediaItem("m1"), tagline: nil, genres: [], studios: [], cast: [],
                         directors: [], writers: [], chapters: [], mediaSources: sources, trailerURL: nil,
                         contentRating: nil, nextEpisode: nil, collections: [])
     }

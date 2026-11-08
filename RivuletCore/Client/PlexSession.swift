@@ -60,19 +60,14 @@ final class PlexSession: ObservableObject {
         PlexUserProfileManager.onProfileEntered = { token in
             Task { await PlexExtraServers.shared.refresh(plexToken: token) }
         }
-        // Jellyfin and Emby sign in and out through the registry; follow it.
         secondaryIDs = MediaProviderRegistry.shared.secondaryProviders.map(\.id)
         MediaProviderRegistry.shared.onSecondaryProvidersChanged = { [weak self] providers in
-            // The servers' Live TV follows every sign-in, sign-out and profile change (shared with tvOS).
-            OtherServerKind.configureLiveTV(secondary: providers, restricted: PlexUserProfileManager.shared.isRestrictedProfile)
             guard let self else { return }
             let ids = providers.map(\.id)
             defer { secondaryIDs = ids }
             guard !repopulating, ids != secondaryIDs else { return }
             Task { await self.refresh() }
         }
-        // The registry was filled before this ran, so the first pass is ours.
-        OtherServerKind.configureLiveTV(restricted: PlexUserProfileManager.shared.isRestrictedProfile)
         // Progress logged while the server was unreachable goes out once it answers.
         browse.afterRefresh = { [weak self] in
             guard let self, await flushOfflineProgress() else { return }

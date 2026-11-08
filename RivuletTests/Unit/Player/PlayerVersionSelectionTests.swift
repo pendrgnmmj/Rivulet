@@ -61,13 +61,13 @@ final class PlayerVersionSelectionTests: XCTestCase {
                                  fileName: nil, videoResolution: "1080", videoTracks: [], audioTracks: [],
                                  subtitleTracks: [], streamKind: .directPlay,
                                  streamURL: URL(string: "http://media.local/Videos/m1/stream"))
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         let detail = MediaItemDetail(
             item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [],
             chapters: [], mediaSources: [source], trailerURL: nil, contentRating: nil,
             nextEpisode: nil, collections: [])
         let playback = ProviderPlayback(
-            provider: StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin), item: item, detail: detail,
+            provider: StubMediaProvider(id: "plex:srv", kind: .plex), item: item, detail: detail,
             stream: StreamInfo(source: source, playSessionID: nil, trackInfoAvailable: true),
             extras: PlaybackExtras())
         return UniversalPlayerViewModel(providerPlayback: playback, startOffset: nil, preferredMediaID: picked)

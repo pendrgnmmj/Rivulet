@@ -145,7 +145,6 @@ struct MacRootView: View {
             Section {
                 Label("Home", systemImage: "house").tag(MacSidebarItem.home)
                 Label("Search", systemImage: "magnifyingglass").tag(MacSidebarItem.search)
-                Label("Live TV", systemImage: "play.tv").tag(MacSidebarItem.liveTV)
                 if showFavorites, browse.offersFavorites {
                     Label("Favorites", systemImage: "heart").tag(MacSidebarItem.favorites)
                 }
@@ -192,7 +191,6 @@ struct MacRootView: View {
                         case .playlist(let playlist): MacPlaylistView(playlist: playlist)
                         case .library(let library): MacLibraryView(library: library)
                         case .person(let person, let providerID): MacPersonView(person: person, providerID: providerID)
-                        case .liveRecordings: MacLiveRecordingsView()
                         }
                     }
                     .macActionHost()
@@ -214,8 +212,6 @@ struct MacRootView: View {
     @ViewBuilder
     private var root: some View {
         switch current {
-        case .liveTV:
-            MacLiveTVView()
         case _ where !browse.hasServers:
             MacSignInLanding()
         case .home: MacHomeView()

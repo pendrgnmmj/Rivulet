@@ -42,20 +42,11 @@ struct RivuletiOSApp: App {
         _plex = StateObject(wrappedValue: session)
         // Start the path monitor now; its first reading arrives after a delay.
         _ = NetworkPathMonitor.shared
-        // The Live TV store re-keys old URL-named M3U favorites when it starts. That must finish before the
-        // first sync pass, or a playlist URL with its login could be uploaded as a channel id.
-        _ = LiveTVDataStore.shared
         // The iOS views read their synced keys live (@AppStorage), so no reload hook is needed.
         CloudSync.shared.start()
         // Recreates the background session and resumes unfinished downloads.
         IOSDownloadCenter.shared.start()
         IOSDownloadActivity.shared.start()
-        // Folds the old single-source settings into the shared store, then
-        // warms the guide so the Live TV tab opens with data.
-        Task {
-            await LiveTVDataStore.shared.migrateLegacyIOSSource(defaults: .standard)
-            LiveTVDataStore.shared.startBackgroundPreload()
-        }
 
         #if !DEBUG
         // Deferred and gated exactly like tvOS: the SDK is never started in

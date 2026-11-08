@@ -15,9 +15,6 @@ struct MacAccountView: View {
     @State private var showingProfiles = false
     @State private var showingServers = false
     @State private var confirmingSignOut = false
-    @State private var signInServer: OtherServerKind?
-    /// Bumped when a server sheet closes, so the rows re-read their stored accounts.
-    @State private var serverRevision = 0
 
     var body: some View {
         Form {
@@ -25,10 +22,6 @@ struct MacAccountView: View {
                 plexSections
             } else {
                 signedOutSection
-            }
-            // Server accounts are the owner's, not a restricted profile's.
-            if !profiles.isRestrictedProfile {
-                serversSection
             }
             if plex.isSignedIn, !profiles.isRestrictedProfile {
                 Section {
@@ -52,8 +45,6 @@ struct MacAccountView: View {
         .sheet(isPresented: $showingSignIn) { MacPlexSignInSheet() }
         .sheet(isPresented: $showingProfiles) { MacProfilePickerSheet() }
         .sheet(isPresented: $showingServers) { MacPlexServerPicker() }
-        .sheet(item: $signInServer, onDismiss: { serverRevision += 1 }) { MacServerSignInSheet(server: $0) }
-        .onAppear { serverRevision += 1 }
         .toolbar {
             if showsDone { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
@@ -87,17 +78,6 @@ struct MacAccountView: View {
         }
     }
 
-    private var serversSection: some View {
-        Section("Servers") {
-            let _ = serverRevision
-            ForEach(OtherServerKind.all, id: \.kind) { server in
-                LabeledContent("\(server.kind.displayName) Server") {
-                    Button(server.account()?.name ?? String(localized: "Sign In…")) { signInServer = server }
-                }
-            }
-        }
-    }
-
     private var signedOutSection: some View {
         Section {
             VStack(spacing: 12) {
@@ -114,10 +94,6 @@ struct MacAccountView: View {
             .padding(.vertical, 8)
         }
     }
-}
-
-extension OtherServerKind: Identifiable {
-    var id: String { kind.displayName }
 }
 
 /// Every server on the account; the ones checked show their content. A click turns one on or off.

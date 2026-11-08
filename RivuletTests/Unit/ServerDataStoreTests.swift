@@ -7,70 +7,63 @@ import XCTest
 
 @MainActor
 final class ServerDataStoreTests: XCTestCase {
-    private let jellyfin = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+    /// An extra Plex server beside the selected one, standing in for "any second server" below.
+    private let secondServer = StubMediaProvider(id: "plex:srv", kind: .plex)
     private let settings = LibrarySettingsManager.shared
     private var savedOrder: [String] = []
     private var savedHidden: Set<String> = []
-    private var savedAccount: Data?
 
     override func setUp() async throws {
         try await super.setUp()
         savedOrder = settings.libraryOrder
         savedHidden = settings.hiddenLibraryKeys
-        savedAccount = UserDefaults.standard.data(forKey: JellyfinSession.accountKey)
     }
 
     override func tearDown() async throws {
         settings.libraryOrder = savedOrder
         settings.hiddenLibraryKeys = savedHidden
-        if let savedAccount {
-            UserDefaults.standard.set(savedAccount, forKey: JellyfinSession.accountKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: JellyfinSession.accountKey)
-        }
         try await super.tearDown()
     }
 
     private func library(_ id: String, _ kind: MediaLibrary.LibraryKind) -> MediaLibrary {
-        MediaLibrary(id: id, providerID: "jellyfin:srv", title: id, kind: kind)
+        MediaLibrary(id: id, providerID: "plex:srv", title: id, kind: kind)
     }
 
     private func recentlyAdded(_ libraryID: String, _ itemID: String) -> MediaHub {
-        MediaHub(id: "\(libraryID).recentlyAdded", providerID: "jellyfin:srv",
+        MediaHub(id: "\(libraryID).recentlyAdded", providerID: "plex:srv",
                  title: "Recently Added in \(libraryID)", style: .shelf,
-                 items: [JellyfinFixtures.mediaItem(itemID)])
+                 items: [MediaItemFixtures.mediaItem(itemID)])
     }
 
-    func test_load_keepsVideoPhotoAndMusicLibraries() async {
-        jellyfin.libraryList = [library("m", .movies), library("t", .shows), library("mu", .music),
-                                library("p", .photos), library("x", .mixed), library("l", .liveTV)]
-        jellyfin.hubsByLibrary = ["p": [recentlyAdded("p", "z")], "mu": [recentlyAdded("mu", "y")]]
+    func test_load_keepsVideoAndPhotoLibraries_dropsMusic() async {
+        secondServer.libraryList = [library("m", .movies), library("t", .shows), library("mu", .music),
+                                library("p", .photos), library("x", .mixed)]
+        secondServer.hubsByLibrary = ["p": [recentlyAdded("p", "z")], "mu": [recentlyAdded("mu", "y")]]
         let store = ServerDataStore(observesRefresh: false)
 
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
 
-        XCTAssertEqual(store.libraries.map(\.id), ["m", "t", "mu", "p", "x"])
+        XCTAssertEqual(store.libraries.map(\.id), ["m", "t", "p", "x"],
+                       "music plays through the selected server only (MusicProviderRegistry)")
         XCTAssertFalse(store.homeRows.contains { $0.id.hasSuffix("|p.recentlyAdded") },
                        "a photo library has no Home row")
-        XCTAssertTrue(store.homeRows.contains { $0.id.hasSuffix("|mu.recentlyAdded") },
-                      "a music library has a Recently Added row, as on Plex")
     }
 
     func test_load_rows_continueWatchingThenEachLibrarysRecentlyAdded() async {
-        jellyfin.libraryList = [library("m", .movies), library("t", .shows)]
-        jellyfin.continueWatchingItems = [JellyfinFixtures.mediaItem("a")]
-        jellyfin.hubsByLibrary = [
-            "m": [MediaHub(id: "m.continueWatching", providerID: "jellyfin:srv", title: "Continue Watching",
-                           style: .shelf, items: [JellyfinFixtures.mediaItem("a")]),
+        secondServer.libraryList = [library("m", .movies), library("t", .shows)]
+        secondServer.continueWatchingItems = [MediaItemFixtures.mediaItem("a")]
+        secondServer.hubsByLibrary = [
+            "m": [MediaHub(id: "m.continueWatching", providerID: "plex:srv", title: "Continue Watching",
+                           style: .shelf, items: [MediaItemFixtures.mediaItem("a")]),
                   recentlyAdded("m", "b")],
             "t": [recentlyAdded("t", "c")]
         ]
         let store = ServerDataStore(observesRefresh: false)
 
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
 
         XCTAssertEqual(store.homeRows.map(\.id),
-                       ["jellyfin:srv|continueWatching", "jellyfin:srv|m.recentlyAdded", "jellyfin:srv|t.recentlyAdded"],
+                       ["plex:srv|continueWatching", "plex:srv|m.recentlyAdded", "plex:srv|t.recentlyAdded"],
                        "Home takes each library's Recently Added; its library Continue Watching row is page-only")
         XCTAssertEqual(store.homeRows.map(\.hubIdentifier), store.homeRows.map(\.id))
         XCTAssertEqual(store.homeRows.map(\.isContinueWatching), [true, false, false])
@@ -80,57 +73,56 @@ final class ServerDataStoreTests: XCTestCase {
     }
 
     func test_load_failure_keepsWhatWasThere() async {
-        jellyfin.libraryList = [library("m", .movies)]
+        secondServer.libraryList = [library("m", .movies)]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
 
-        jellyfin.librariesError = URLError(.timedOut)
-        await store.load(from: jellyfin)
+        secondServer.librariesError = URLError(.timedOut)
+        await store.load(from: secondServer)
 
         XCTAssertEqual(store.libraries.map(\.id), ["m"], "a server that drops off must not empty the sidebar")
         XCTAssertFalse(store.isLoading)
     }
 
     func test_load_continueWatchingFailure_keepsItsRow() async {
-        jellyfin.libraryList = [library("m", .movies)]
-        jellyfin.continueWatchingItems = [JellyfinFixtures.mediaItem("a")]
-        jellyfin.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
+        secondServer.libraryList = [library("m", .movies)]
+        secondServer.continueWatchingItems = [MediaItemFixtures.mediaItem("a")]
+        secondServer.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
 
-        jellyfin.continueWatchingError = URLError(.timedOut)
-        await store.load(from: jellyfin)
+        secondServer.continueWatchingError = URLError(.timedOut)
+        await store.load(from: secondServer)
 
-        XCTAssertEqual(store.homeRows.map(\.id), ["jellyfin:srv|continueWatching", "jellyfin:srv|m.recentlyAdded"])
-        jellyfin.continueWatchingError = nil
-        jellyfin.continueWatchingItems = []
-        await store.load(from: jellyfin)
-        XCTAssertEqual(store.homeRows.map(\.id), ["jellyfin:srv|m.recentlyAdded"], "an empty answer still removes the row")
+        XCTAssertEqual(store.homeRows.map(\.id), ["plex:srv|continueWatching", "plex:srv|m.recentlyAdded"])
+        secondServer.continueWatchingError = nil
+        secondServer.continueWatchingItems = []
+        await store.load(from: secondServer)
+        XCTAssertEqual(store.homeRows.map(\.id), ["plex:srv|m.recentlyAdded"], "an empty answer still removes the row")
     }
 
     func test_load_hubsFailure_keepsThatLibrarysRow() async {
-        jellyfin.libraryList = [library("m", .movies)]
-        jellyfin.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
+        secondServer.libraryList = [library("m", .movies)]
+        secondServer.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
 
-        jellyfin.hubsError = URLError(.timedOut)
-        await store.load(from: jellyfin)
+        secondServer.hubsError = URLError(.timedOut)
+        await store.load(from: secondServer)
 
-        XCTAssertEqual(store.homeRows.map(\.id), ["jellyfin:srv|m.recentlyAdded"])
+        XCTAssertEqual(store.homeRows.map(\.id), ["plex:srv|m.recentlyAdded"])
 
-        jellyfin.hubsError = nil
-        jellyfin.hubsByLibrary = ["m": []]
-        await store.load(from: jellyfin)
+        secondServer.hubsError = nil
+        secondServer.hubsByLibrary = ["m": []]
+        await store.load(from: secondServer)
         XCTAssertEqual(store.homeRows.map(\.id), [], "a library with nothing new drops its row")
     }
 
     func test_reload_withoutAccount_clearsEverything() async {
-        UserDefaults.standard.removeObject(forKey: JellyfinSession.accountKey)
-        jellyfin.libraryList = [library("m", .movies)]
-        jellyfin.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
+        secondServer.libraryList = [library("m", .movies)]
+        secondServer.hubsByLibrary = ["m": [recentlyAdded("m", "b")]]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
         XCTAssertFalse(store.homeRows.isEmpty)
 
         store.reload()
@@ -141,7 +133,6 @@ final class ServerDataStoreTests: XCTestCase {
     }
 
     func test_reload_withoutAccount_publishesNothingWhenAlreadyEmpty() {
-        UserDefaults.standard.removeObject(forKey: JellyfinSession.accountKey)
         let store = ServerDataStore(observesRefresh: false)
         var publishes = 0
         let sub = store.objectWillChange.sink { publishes += 1 }
@@ -152,26 +143,26 @@ final class ServerDataStoreTests: XCTestCase {
     }
 
     func test_visibleHomeRows_followRowAndLibraryVisibility() async {
-        jellyfin.libraryList = [library("m", .movies), library("t", .shows)]
-        jellyfin.continueWatchingItems = [JellyfinFixtures.mediaItem("a")]
-        jellyfin.hubsByLibrary = ["m": [recentlyAdded("m", "b")], "t": [recentlyAdded("t", "c")]]
+        secondServer.libraryList = [library("m", .movies), library("t", .shows)]
+        secondServer.continueWatchingItems = [MediaItemFixtures.mediaItem("a")]
+        secondServer.hubsByLibrary = ["m": [recentlyAdded("m", "b")], "t": [recentlyAdded("t", "c")]]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
-        let cw = "jellyfin:srv|continueWatching"
+        await store.load(from: secondServer)
+        let cw = "plex:srv|continueWatching"
         HomeRowSettings.setHidden(true, for: cw)
         defer { HomeRowSettings.setHidden(false, for: cw) }
         settings.hiddenLibraryKeys.insert(library("t", .shows).settingsKey)
 
-        XCTAssertEqual(store.visibleHomeRows.map(\.id), ["jellyfin:srv|m.recentlyAdded"])
-        XCTAssertEqual(store.homeRowsInSidebarOrder.map(\.id), [cw, "jellyfin:srv|m.recentlyAdded"],
+        XCTAssertEqual(store.visibleHomeRows.map(\.id), ["plex:srv|m.recentlyAdded"])
+        XCTAssertEqual(store.homeRowsInSidebarOrder.map(\.id), [cw, "plex:srv|m.recentlyAdded"],
                        "Settings lists Home-hidden rows, never sidebar-hidden libraries' rows")
         XCTAssertEqual(store.homeRows.count, 3, "Settings lists hidden rows too, so they can come back")
     }
 
     func test_visibleLibraries_followSidebarOrderAndVisibility() async {
-        jellyfin.libraryList = [library("m", .movies), library("t", .shows), library("x", .mixed)]
+        secondServer.libraryList = [library("m", .movies), library("t", .shows), library("x", .mixed)]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
         settings.libraryOrder = [library("x", .mixed).settingsKey, library("m", .movies).settingsKey]
         settings.hiddenLibraryKeys.insert(library("t", .shows).settingsKey)
 
@@ -187,15 +178,15 @@ final class ServerDataStoreTests: XCTestCase {
         XCTAssertEqual(settings.filterAndSort(libs).map(\.id), ["x", "m"])
     }
 
-    func test_plexSync_keepsJellyfinKeys() {
-        let jellyfinKey = library("m", .movies).settingsKey
-        settings.libraryOrder = ["1", jellyfinKey]
-        settings.hiddenLibraryKeys = [jellyfinKey, "gone"]
+    func test_plexSync_keepsOtherServerKeys() {
+        let otherKey = library("m", .movies).settingsKey
+        settings.libraryOrder = ["1", otherKey]
+        settings.hiddenLibraryKeys = [otherKey, "gone"]
 
         settings.syncOrderWithLibraries([])
 
-        XCTAssertEqual(settings.libraryOrder, [jellyfinKey], "a Plex refresh must not delete Jellyfin settings")
-        XCTAssertEqual(settings.hiddenLibraryKeys, [jellyfinKey])
+        XCTAssertEqual(settings.libraryOrder, [otherKey], "a Plex refresh must not delete another server's settings")
+        XCTAssertEqual(settings.hiddenLibraryKeys, [otherKey])
     }
 
     func test_moveLibrary_staysInsideItsOwnRun() {
@@ -224,24 +215,12 @@ final class ServerDataStoreTests: XCTestCase {
         XCTAssertEqual(settings.sort(libs).map(\.id), ["c", "a", "b"])
     }
 
-    func test_labelsServers_falseWithoutAJellyfinAccount() {
+    func test_labelsServers_falseWithoutAnotherAccount() {
         XCTAssertFalse(ServerDataStore(observesRefresh: false).labelsServers)
-    }
-
-    func test_shown_keepsExtraPlexServers_andOtherKindsOnlyForTheirSignedInAccount() {
-        let office = StubMediaProvider(id: "plex:office", kind: .plex)
-        let stale = StubMediaProvider(id: "jellyfin:old", kind: .jellyfin)
-        let all: [any MediaProvider] = [office, jellyfin, stale]
-
-        XCTAssertEqual(ServerDataStore.shown(all, accountIDs: [.jellyfin: "jellyfin:srv"]).map(\.id),
-                       ["plex:office", "jellyfin:srv"])
-        XCTAssertEqual(ServerDataStore.shown(all, accountIDs: [:]).map(\.id), ["plex:office"],
-                       "a restricted profile, or a signed-out kind, shows none of the other kinds")
     }
 
     func test_displayName() {
         XCTAssertEqual(MediaProviderKind.plex.displayName, "Plex")
-        XCTAssertEqual(MediaProviderKind.jellyfin.displayName, "Jellyfin")
     }
 
     // MARK: - Several servers (#87)
@@ -251,33 +230,33 @@ final class ServerDataStoreTests: XCTestCase {
         office.libraryList = [MediaLibrary(id: "1", providerID: "plex:office", title: "Movies", kind: .movies),
                               MediaLibrary(id: "2", providerID: "plex:office", title: "Music", kind: .music)]
         office.hubsByLibrary = ["1": [MediaHub(id: "1.recentlyAdded", providerID: "plex:office", title: "Recently Added in Movies",
-                                               style: .shelf, items: [JellyfinFixtures.mediaItem("o", providerID: "plex:office")])]]
-        jellyfin.libraryList = [MediaLibrary(id: "1", providerID: "jellyfin:srv", title: "Films", kind: .movies)]
-        jellyfin.hubsByLibrary = ["1": [MediaHub(id: "1.recentlyAdded", providerID: "jellyfin:srv", title: "Recently Added in Films",
-                                                 style: .shelf, items: [JellyfinFixtures.mediaItem("j")])]]
+                                               style: .shelf, items: [MediaItemFixtures.mediaItem("o", providerID: "plex:office")])]]
+        secondServer.libraryList = [MediaLibrary(id: "1", providerID: "plex:srv", title: "Films", kind: .movies)]
+        secondServer.hubsByLibrary = ["1": [MediaHub(id: "1.recentlyAdded", providerID: "plex:srv", title: "Recently Added in Films",
+                                                 style: .shelf, items: [MediaItemFixtures.mediaItem("j")])]]
         let store = ServerDataStore(observesRefresh: false)
 
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
         await store.load(from: office)
 
-        XCTAssertEqual(store.libraries.map(\.settingsKey), ["jellyfin:srv/1", "plex:office/1"],
+        XCTAssertEqual(store.libraries.map(\.settingsKey), ["plex:office/1", "plex:srv/1"],
                        "an extra Plex server's music stays on the selected server")
         XCTAssertEqual(store.homeRowsInSidebarOrder.map(\.id),
-                       ["jellyfin:srv|1.recentlyAdded", "plex:office|1.recentlyAdded"],
+                       ["plex:office|1.recentlyAdded", "plex:srv|1.recentlyAdded"],
                        "each server's row matches its own library, not the other's with the same id")
     }
 
     func test_oneServerFailing_keepsTheOthersRows() async {
         let office = StubMediaProvider(id: "plex:office", kind: .plex)
         office.libraryList = [MediaLibrary(id: "1", providerID: "plex:office", title: "Movies", kind: .movies)]
-        jellyfin.libraryList = [library("m", .movies)]
+        secondServer.libraryList = [library("m", .movies)]
         let store = ServerDataStore(observesRefresh: false)
-        await store.load(from: jellyfin)
+        await store.load(from: secondServer)
         await store.load(from: office)
 
         office.librariesError = URLError(.timedOut)
         await store.load(from: office)
 
-        XCTAssertEqual(store.libraries.map(\.settingsKey), ["jellyfin:srv/m", "plex:office/1"])
+        XCTAssertEqual(store.libraries.map(\.settingsKey), ["plex:office/1", "plex:srv/m"])
     }
 }

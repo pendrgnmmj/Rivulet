@@ -6,8 +6,7 @@ import UIKit
 
 /// README and App Store screenshot mode (`tools/screenshots/shoot-tv.sh`), DEBUG only. Launch args:
 /// `-screenshotToken T -screenshotServer URL` sign in and show only libraries titled
-/// "…-demo" (suffix stripped) and their items; `-screenshotLiveTV <base url>` adds the
-/// demo Live TV source.
+/// "…-demo" (suffix stripped) and their items.
 enum TVScreenshotMode {
     private static let defaults = UserDefaults.standard
     static let demoSuffix = "-demo"
@@ -26,12 +25,6 @@ enum TVScreenshotMode {
         let info = Bundle.main.infoDictionary
         defaults.set("\(info?["CFBundleShortVersionString"] as? String ?? "1.0") (\(info?["CFBundleVersion"] as? String ?? "1"))",
                      forKey: "lastSeenBuild")
-        if let base = defaults.string(forKey: "screenshotLiveTV") {
-            let source = LiveTVDataStore.SourceConfiguration(
-                id: "screenshot-demo", type: "m3u", name: "Demo", baseURL: nil,
-                m3uURL: "\(base)/demo.m3u", epgURL: "\(base)/guide.xml", apiToken: nil)
-            defaults.set(try? JSONEncoder().encode([source]), forKey: "liveTVSourceConfigurations")
-        }
     }
 
     /// `RIVULET_FOCUS_MOVES=down,down,…` after `RIVULET_FOCUS_DELAY` seconds (default 15): drives

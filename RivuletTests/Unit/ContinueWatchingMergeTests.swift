@@ -10,7 +10,7 @@ final class ContinueWatchingMergeTests: XCTestCase {
 
     private func item(_ id: String, on server: String, kind: MediaKind = .movie,
                       watched: TimeInterval? = nil, identity: [String]) -> MediaItem {
-        var item = JellyfinFixtures.mediaItem(id, kind: kind, providerID: server)
+        var item = MediaItemFixtures.mediaItem(id, kind: kind, providerID: server)
         item.identity = identity
         item.userState.lastViewedAt = watched.map { Date(timeIntervalSince1970: $0) }
         return item

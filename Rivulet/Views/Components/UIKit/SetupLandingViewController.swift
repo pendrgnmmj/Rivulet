@@ -1,34 +1,22 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Copyright (C) 2025-2026 Bain Gurley
 
-//  First-run landing: one card each for Plex, Jellyfin, Emby and Live TV, each opening
-//  its own setup flow. A finished card shows a check, and Start Watching appears
-//  once any source is connected.
+//  First-run landing: a Plex card opening its own setup flow. A finished card
+//  shows a check, and Start Watching appears once a source is connected.
 
 import Combine
 import UIKit
 
 final class SetupLandingViewController: UIViewController {
 
-    /// Plex, Jellyfin, Emby, or a Live TV source the user added (not one that follows a server).
     static var hasAnySource: Bool {
-        PlexAuthManager.shared.hasCredentials || JellyfinSession.account != nil
-            || EmbySession.account != nil || !addedLiveTVSources.isEmpty
-    }
-
-    private static var addedLiveTVSources: [LiveTVDataStore.LiveTVSourceInfo] {
-        LiveTVDataStore.shared.sources.filter { !$0.sourceType.followsServer }
+        PlexAuthManager.shared.hasCredentials
     }
 
     var onDone: (() -> Void)?
 
     private let plexCard = SetupLandingViewController.makeCard(title: "Plex", symbol: "play.rectangle.fill")
-    private let jellyfinCard = SetupLandingViewController.makeCard(title: "Jellyfin", symbol: "server.rack")
-    private let embyCard = SetupLandingViewController.makeCard(title: "Emby", symbol: "play.square.stack.fill")
-    private let liveTVCard = SetupLandingViewController.makeCard(title: String(localized: "Live TV"),
-                                                                 symbol: "antenna.radiowaves.left.and.right")
     private let doneButton = UIButton(configuration: .glass())
-    private var sourcesObserver: AnyCancellable?
     private var cloudObserver: AnyCancellable?
     private let doneGuide = UIFocusGuide()
     private let cardRow = UIStackView()
@@ -46,16 +34,13 @@ final class SetupLandingViewController: UIViewController {
         title.font = .systemFont(ofSize: 57, weight: .bold)
         title.textColor = .white
         let subtitle = UILabel()
-        subtitle.text = String(localized: "Connect your media and Live TV to get started.")
+        subtitle.text = String(localized: "Connect your media to get started.")
         subtitle.font = .systemFont(ofSize: 29)
         subtitle.textColor = UIColor.white.withAlphaComponent(0.7)
 
         plexCard.addAction(UIAction { [weak self] _ in self?.connectPlex() }, for: .primaryActionTriggered)
-        jellyfinCard.addAction(UIAction { [weak self] _ in self?.connectJellyfin() }, for: .primaryActionTriggered)
-        embyCard.addAction(UIAction { [weak self] _ in self?.connectEmby() }, for: .primaryActionTriggered)
-        liveTVCard.addAction(UIAction { [weak self] _ in self?.addLiveTV() }, for: .primaryActionTriggered)
         let cards = cardRow
-        [plexCard, jellyfinCard, embyCard, liveTVCard].forEach(cards.addArrangedSubview)
+        [plexCard].forEach(cards.addArrangedSubview)
         cards.spacing = Self.cardSpacing
 
         doneButton.configuration?.title = String(localized: "Start Watching")
@@ -86,10 +71,6 @@ final class SetupLandingViewController: UIViewController {
             doneGuide.trailingAnchor.constraint(equalTo: cards.trailingAnchor)
         ])
 
-        // A server's own Live TV arrives after its sign-in, and the cards follow it.
-        sourcesObserver = LiveTVDataStore.shared.$sources
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.refresh() }
         refresh()
         awaitICloud()
     }
@@ -141,7 +122,7 @@ final class SetupLandingViewController: UIViewController {
     override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
         super.didUpdateFocus(in: context, with: coordinator)
         if context.nextFocusedView === doneButton {
-            doneGuide.preferredFocusEnvironments = [(context.previouslyFocusedView as? UIButton) ?? jellyfinCard]
+            doneGuide.preferredFocusEnvironments = [(context.previouslyFocusedView as? UIButton) ?? plexCard]
         } else if context.nextFocusedView is UIButton {
             doneGuide.preferredFocusEnvironments = [doneButton]
         }
@@ -153,22 +134,6 @@ final class SetupLandingViewController: UIViewController {
         // Connected: the Settings page, with the servers and Sign Out (a wrong account).
         if PlexAuthManager.shared.isAuthenticated { presentSettingsFlow(.plex); return }
         present(PlexSignInViewController { [weak self] in self?.flowFinished() }, animated: true)
-    }
-
-    /// The Settings page signs in, or shows the server and Sign Out.
-    private func connectJellyfin() {
-        SettingsContent.addSourceDraft = AddSourceDraft()
-        presentSettingsFlow(.jellyfin)
-    }
-
-    private func connectEmby() {
-        SettingsContent.addSourceDraft = AddSourceDraft()
-        presentSettingsFlow(.emby)
-    }
-
-    /// Selectable again once checked: Live TV takes more than one source.
-    private func addLiveTV() {
-        presentSettingsFlow(.addLiveTVSource)
     }
 
     /// The Settings pages themselves, standalone: their first page's Menu or finish closes them.
@@ -206,12 +171,6 @@ final class SetupLandingViewController: UIViewController {
         let plexDetail: String? = plexServers > 1 ? String(localized: "\(plexServers) Servers")
             : plexServers == 1 ? auth.savedServerName ?? String(localized: "Connected") : nil
         Self.setDone(plexCard, prompt: String(localized: "Sign In"), detail: plexDetail)
-        Self.setDone(jellyfinCard, prompt: String(localized: "Sign In"), detail: JellyfinSession.account?.serverName)
-        let added = Self.addedLiveTVSources
-        let liveTVDetail: String? = added.isEmpty ? nil
-            : added.count == 1 ? added[0].displayName : String(localized: "\(added.count) Sources")
-        Self.setDone(embyCard, prompt: String(localized: "Sign In"), detail: EmbySession.account?.serverName)
-        Self.setDone(liveTVCard, prompt: String(localized: "Add a Source"), detail: liveTVDetail)
         // Held in place while hidden, so nothing moves when it appears.
         doneButton.isEnabled = Self.hasAnySource
         doneButton.alpha = doneButton.isEnabled ? 1 : 0

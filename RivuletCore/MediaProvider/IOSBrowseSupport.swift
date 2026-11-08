@@ -15,7 +15,7 @@ import Synchronization
 /// Which servers' items the iOS player can play. A Play control shows only where this says yes;
 /// it is the one gate.
 nonisolated enum IOSPlaybackGate {
-    static let playableKinds: Set<MediaProviderKind> = [.plex, .jellyfin, .emby]
+    static let playableKinds: Set<MediaProviderKind> = [.plex]
 
     static func canPlay(_ ref: MediaItemRef) -> Bool {
         MediaProviderKind(providerID: ref.providerID).map(playableKinds.contains) ?? false

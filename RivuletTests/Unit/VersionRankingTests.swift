@@ -92,7 +92,7 @@ final class VersionRankingTests: XCTestCase {
     }
 
     func test_primarySource_isTheBestVersion() {
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         let detail = MediaItemDetail(
             item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [],
             chapters: [], mediaSources: [source("hd", height: 1080), source("uhd", height: 2160)],

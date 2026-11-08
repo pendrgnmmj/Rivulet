@@ -12,17 +12,6 @@ import XCTest
 
 @MainActor
 final class MediaProviderRegistryTests: XCTestCase {
-    /// Browse surfaces mint refs for Plex hubs from `plexProvider`. With a
-    /// second backend registered, "first provider in the dictionary" could
-    /// hand them the Jellyfin id.
-    func test_plexProvider_ignoresOtherKinds() {
-        let registry = MediaProviderRegistry()
-        registry.register(StubMediaProvider(id: "jellyfin:a", kind: .jellyfin))
-        XCTAssertNil(registry.plexProvider)
-        registry.register(StubMediaProvider(id: "plex:b", kind: .plex))
-        XCTAssertEqual(registry.plexProvider?.id, "plex:b")
-    }
-
     /// A restored session has no machineIdentifier, so the Plex provider id is
     /// a hash of the server URL, and a mid-session URL change (connection
     /// upgrade, failover) changes it. Tiles minted before the change carry
@@ -83,30 +72,6 @@ final class MediaProviderRegistryTests: XCTestCase {
         XCTAssertFalse(reported.contains("plex:main"), "the selected server is not a secondary one")
     }
 
-    /// Home and the sidebar list servers in this order, whatever order they registered in.
-    func test_secondaryProviders_extrasFirst_thenEachKindInOrder_sortedByID() {
-        let registry = MediaProviderRegistry()
-        registry.register(StubMediaProvider(id: "jellyfin:b", kind: .jellyfin))
-        registry.register(StubMediaProvider(id: "jellyfin:a", kind: .jellyfin))
-        registry.populate(plexServerURL: "http://a:32400", plexToken: "t", plexMachineID: "main", plexName: "Angel",
-                          extraPlex: [extra("office", "Office"), extra("cabin", "Cabin")])
-        // populate rebuilds the other kinds from their stored accounts; put the stubs back.
-        registry.register(StubMediaProvider(id: "jellyfin:b", kind: .jellyfin))
-        registry.register(StubMediaProvider(id: "jellyfin:a", kind: .jellyfin))
-
-        let ids = registry.secondaryProviders.map(\.id)
-        XCTAssertEqual(Array(ids.prefix(2)), ["plex:office", "plex:cabin"], "extras keep their given order")
-        XCTAssertEqual(ids.dropFirst(2).filter { ["jellyfin:a", "jellyfin:b"].contains($0) }, ["jellyfin:a", "jellyfin:b"])
-    }
-
-    func test_populate_dropsOtherKindsStubsAndKeepsPlex() {
-        let registry = MediaProviderRegistry()
-        registry.register(StubMediaProvider(id: "jellyfin:stale", kind: .jellyfin))
-        registry.populate(plexServerURL: "http://a:32400", plexToken: "t", plexMachineID: "main", plexName: "Angel")
-        XCTAssertNil(registry.provider(for: "jellyfin:stale"), "other kinds are rebuilt from their stored account")
-        XCTAssertEqual(registry.plexProvider?.id, "plex:main")
-    }
-
     func test_extraPlexServers_skipTheSelectedServer_andGoWhenDropped() {
         let registry = MediaProviderRegistry()
         registry.populate(plexServerURL: "http://a:32400", plexToken: "t", plexMachineID: "main", plexName: "Angel",
@@ -146,7 +111,7 @@ final class MediaProviderRegistryTests: XCTestCase {
 
         XCTAssertTrue(MediaItemRef(providerID: "plex:main", itemID: "1").isPlex)
         XCTAssertFalse(MediaItemRef(providerID: "plex:office", itemID: "1").isPlex)
-        XCTAssertFalse(MediaItemRef(providerID: "jellyfin:srv", itemID: "1").isPlex)
+        XCTAssertFalse(MediaItemRef(providerID: "emby:srv", itemID: "1").isPlex)
     }
 
     /// The two servers the maintainer's account lists, measured on plex.tv. An

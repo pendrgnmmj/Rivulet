@@ -26,7 +26,7 @@ final class MediaProviderStage3aDefaultsTests: XCTestCase {
     }
 
     func test_item_defaultsToNoGenresOrIDs() {
-        let item = JellyfinFixtures.mediaItem("a")
+        let item = MediaItemFixtures.mediaItem("a")
         XCTAssertNil(item.genres)
         XCTAssertNil(item.externalIDs)
     }
@@ -46,7 +46,7 @@ final class MediaProviderStage3aDefaultsTests: XCTestCase {
     }
 
     func test_itemDecodesFromBeforeTheNewFields() throws {
-        let item = JellyfinFixtures.mediaItem("a")
+        let item = MediaItemFixtures.mediaItem("a")
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(item)) as? [String: Any])
         json["genres"] = nil
         json["externalIDs"] = nil
@@ -56,7 +56,7 @@ final class MediaProviderStage3aDefaultsTests: XCTestCase {
 
     func test_hubPage_defaultIsTheRowAsOnePage() async throws {
         let stub = StubMediaProvider()
-        let row = MediaHub(id: "h", providerID: "stub", title: "H", style: .shelf, items: [JellyfinFixtures.mediaItem("a")])
+        let row = MediaHub(id: "h", providerID: "stub", title: "H", style: .shelf, items: [MediaItemFixtures.mediaItem("a")])
         let first = try await stub.hubPage(row, page: Page(offset: 0, limit: 24))
         XCTAssertEqual(first.items.map(\.ref.itemID), ["a"])
         XCTAssertNil(first.nextPage)

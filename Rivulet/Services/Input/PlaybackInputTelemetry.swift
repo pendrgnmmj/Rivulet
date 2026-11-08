@@ -17,7 +17,6 @@ final class PlaybackInputTelemetry {
 
     enum ScrubSurface: String {
         case vod
-        case liveTV = "live_tv"
     }
 
     enum ScrubTransition: String {

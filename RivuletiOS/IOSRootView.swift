@@ -67,9 +67,6 @@ struct IOSRootView: View {
                     .defaultVisibility(.hidden, for: .tabBar)
                 }
             }
-            Tab("Live TV", systemImage: "play.tv", value: "live-tv") {
-                NavigationStack { IOSLiveTVView() }
-            }
             Tab(value: "search", role: .search) {
                 tabStack(searchZoom) { IOSPlexSearchView() }
             }

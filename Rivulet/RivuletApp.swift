@@ -64,9 +64,6 @@ struct RivuletApp: App {
             // Older builds recorded token-bearing URLs in the cache metadata.
             Task { await ImageCacheManager.shared.clearAll() }
         }
-        JellyfinSession.onChanged = { ServerDataStore.shared.reload() }
-        EmbySession.onChanged = { ServerDataStore.shared.reload() }
-        OtherServerKind.installLiveSessionClosers()
         PlexUserProfileManager.onProfileChanged = {
             // The queue reports progress with whichever token is current.
             MusicQueue.shared.stop()
@@ -132,9 +129,6 @@ struct RivuletApp: App {
                 NotificationCenter.default.post(name: HomeCollectionPins.changedNotification, object: nil)
             }
         }
-        // The Live TV store re-keys old URL-named M3U favorites when it starts. That must finish before the
-        // first sync pass, or a playlist URL with its login could be uploaded as a channel id.
-        _ = LiveTVDataStore.shared
         // Sources that arrive from iCloud finish the setup landing, so a new Apple TV opens on Home.
         CloudSync.onAccountsChanged = {
             if SetupLandingViewController.hasAnySource { UserDefaults.standard.set(true, forKey: "setupComplete") }
@@ -171,17 +165,13 @@ struct RivuletApp: App {
 
     var sharedModelContainer: ModelContainer = {
         // Runs before init()'s body, so this is the earliest app code at launch.
-        // Opening a 7-model store is not free.
+        // Opening a 3-model store is not free.
         StartupTimer.mark("sharedModelContainer build start")
         defer { StartupTimer.mark("sharedModelContainer build end") }
         let schema = Schema([
             ServerConfiguration.self,
             PlexServer.self,
-            IPTVSource.self,
-            Channel.self,
-            FavoriteChannel.self,
             WatchProgress.self,
-            EPGProgram.self,
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

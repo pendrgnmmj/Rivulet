@@ -33,7 +33,7 @@ final class ProviderPlaybackReloadTests: XCTestCase {
 
     private func playback(_ provider: StubMediaProvider, kind: MediaSource.StreamKind = .directPlay,
                           plan: StreamPlan = .original) -> ProviderPlayback {
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         let direct = source()
         let detail = MediaItemDetail(
             item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [], chapters: [],
@@ -49,7 +49,7 @@ final class ProviderPlaybackReloadTests: XCTestCase {
     private let step4 = QualityStep.step(kbps: 4000)!
 
     private func provider() -> StubMediaProvider {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         provider.transcodeResult = StreamInfo(source: source(kind: .hlsTranscode, url: "http://s/hls"),
                                               playSessionID: "ps2", trackInfoAvailable: true)
         provider.streamResult = StreamInfo(source: source(), playSessionID: "ps3", trackInfoAvailable: true)

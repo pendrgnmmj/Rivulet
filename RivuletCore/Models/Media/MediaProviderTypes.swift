@@ -12,9 +12,10 @@ import Foundation
 
 enum MediaProviderKind: String, Sendable, Hashable, Codable, CaseIterable {
     case plex
-    case jellyfin
-    case emby
 }
+
+/// What a "homevideos" view holds: photos only (photo browser) or any video (folders).
+enum HomeVideosContent { case photosOnly, videos }
 
 enum ConnectionState: Sendable, Hashable {
     case connected
@@ -43,22 +44,17 @@ extension MediaProviderError: LocalizedError {
 }
 
 extension MediaProviderKind {
-    /// The kind a provider id names ("jellyfin:<serverID>"), nil for any other id.
+    /// The kind a provider id names ("plex:<serverID>"), nil for any other id.
     init?(providerID: String) {
         guard let colon = providerID.firstIndex(of: ":"),
               let kind = Self(rawValue: String(providerID[..<colon])) else { return nil }
         self = kind
     }
 
-    /// The servers beside the selected Plex one, in the order Home and the sidebar list them.
-    static let otherServerKinds = allCases.filter { $0 != .plex }
-
     /// The server type as a source badge shows it.
     var displayName: String {
         switch self {
         case .plex: "Plex"
-        case .jellyfin: "Jellyfin"
-        case .emby: "Emby"
         }
     }
 }

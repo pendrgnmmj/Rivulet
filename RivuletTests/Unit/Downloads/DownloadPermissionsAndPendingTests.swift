@@ -9,52 +9,52 @@ final class DownloadPermissionsAndPendingTests: XCTestCase {
     // MARK: - Permissions
 
     func test_aFailedReadIsAskedAgainAndNeverHidesDownload() async {
-        let stub = StubMediaProvider(id: "jellyfin:a", kind: .jellyfin)
+        let stub = StubMediaProvider(id: "plex:a", kind: .plex)
         stub.downloadAnswers = [.failure(MediaProviderError.unreachable), .success(true)]
         var permissions = DownloadPermissions()
         await permissions.ask([stub])
-        XCTAssertFalse(permissions.allowed.contains("jellyfin:a"))
-        XCTAssertFalse(permissions.answered.contains("jellyfin:a"), "a failed read is not an answer")
+        XCTAssertFalse(permissions.allowed.contains("plex:a"))
+        XCTAssertFalse(permissions.answered.contains("plex:a"), "a failed read is not an answer")
         await permissions.ask([stub])
-        XCTAssertTrue(permissions.allowed.contains("jellyfin:a"))
+        XCTAssertTrue(permissions.allowed.contains("plex:a"))
         XCTAssertEqual(stub.downloadAsks, 2)
     }
 
     func test_anExplicitNoIsRememberedAndNotAskedAgain() async {
-        let stub = StubMediaProvider(id: "emby:a", kind: .emby)
+        let stub = StubMediaProvider(id: "plex:a", kind: .plex)
         stub.downloadAnswers = [.success(false), .success(true)]
         var permissions = DownloadPermissions()
         await permissions.ask([stub])
         await permissions.ask([stub])
-        XCTAssertFalse(permissions.allowed.contains("emby:a"))
+        XCTAssertFalse(permissions.allowed.contains("plex:a"))
         XCTAssertEqual(stub.downloadAsks, 1)
     }
 
     func test_anAnsweredYesIsNotAskedAgain() async {
-        let stub = StubMediaProvider(id: "jellyfin:a", kind: .jellyfin)
+        let stub = StubMediaProvider(id: "plex:a", kind: .plex)
         stub.downloadAnswers = [.success(true)]
         var permissions = DownloadPermissions()
         await permissions.ask([stub])
         await permissions.ask([stub])
         XCTAssertEqual(stub.downloadAsks, 1)
-        XCTAssertTrue(permissions.allowed.contains("jellyfin:a"))
+        XCTAssertTrue(permissions.allowed.contains("plex:a"))
     }
 
     func test_resetForgetsEverything() async {
-        let stub = StubMediaProvider(id: "jellyfin:a", kind: .jellyfin)
+        let stub = StubMediaProvider(id: "plex:a", kind: .plex)
         stub.downloadAnswers = [.success(true), .success(false)]
         var permissions = DownloadPermissions()
         await permissions.ask([stub])
         permissions.reset()
         await permissions.ask([stub])
-        XCTAssertFalse(permissions.allowed.contains("jellyfin:a"))
+        XCTAssertFalse(permissions.allowed.contains("plex:a"))
     }
 
     // MARK: - Pending work
 
     private func record(_ id: String, _ state: DownloadState) -> DownloadRecord {
-        DownloadRecord(id: id, providerID: "jellyfin:srv", itemID: id, quality: "original", state: state,
-                       item: DownloadFixtures.item(id, providerID: "jellyfin:srv"), metadata: PlexMetadata(ratingKey: id))
+        DownloadRecord(id: id, providerID: "plex:srv", itemID: id, quality: "original", state: state,
+                       item: DownloadFixtures.item(id, providerID: "plex:srv"), metadata: PlexMetadata(ratingKey: id))
     }
 
     func test_pending_isUnsettledVisibleAndWithoutATask() {

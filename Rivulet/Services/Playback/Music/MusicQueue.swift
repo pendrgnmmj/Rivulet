@@ -81,17 +81,8 @@ final class MusicQueue: ObservableObject {
     /// also toggled the paused song underneath it, and this queue's progress
     /// timer kept writing the song's position and a zero rate into the film's
     /// entry, so the system scrubber showed the wrong time.
-    var videoOwnsNowPlaying: Bool { filmOwnsNowPlaying || !liveTVSessions.isEmpty }
+    var videoOwnsNowPlaying: Bool { filmOwnsNowPlaying }
     private var filmOwnsNowPlaying = false
-    /// Live TV screens up (full-screen player, multiview); the two overlap during a hand-off.
-    private var liveTVSessions: Set<ObjectIdentifier> = []
-
-    func liveTVSessionBegan(_ owner: ObjectIdentifier) {
-        liveTVSessions.insert(owner)
-        if playbackState == .playing { pause() }  // A channel does not play over a song.
-    }
-
-    func liveTVSessionEnded(_ owner: ObjectIdentifier) { liveTVSessions.remove(owner) }
 
     // MARK: - Private State
 

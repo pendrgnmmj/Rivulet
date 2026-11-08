@@ -1,5 +1,8 @@
 # Live TV Add-Source Flow Rework
 
+> **Removed 2026-11-07:** This feature was removed in the Plex-only fork. See
+> `Docs/superpowers/plans/2026-11-07-plex-only-strip-down.md`.
+
 **Date:** 2026-07-16
 **Status:** Approved, ready for implementation
 

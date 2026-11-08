@@ -31,8 +31,7 @@ final class SidebarReselectionTests: XCTestCase {
     func test_everyContentTabHandlesExplicitReselection() throws {
         let tabs: [SidebarTab] = [.home, .search, .discover, .watchlist, .library(key: "movies"),
                                  .providerLibrary(providerID: "jellyfin", libraryID: "shows"),
-                                 .playlists(providerID: "plex"), .liveTV(sourceId: nil),
-                                 .liveTV(sourceId: "iptv"), .settings]
+                                 .playlists(providerID: "plex"), .settings]
         for tab in tabs {
             let shell = RootShellViewController()
             let page = Page()

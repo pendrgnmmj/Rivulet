@@ -32,7 +32,6 @@ final class LibraryShuffleTests: XCTestCase {
         XCTAssertTrue(library(.mixed).canShuffle)
         XCTAssertFalse(library(.music).canShuffle)
         XCTAssertFalse(library(.photos).canShuffle)
-        XCTAssertFalse(library(.liveTV).canShuffle)
     }
 
     // MARK: - Folder page
@@ -116,99 +115,6 @@ final class LibraryShuffleTests: XCTestCase {
         XCTAssertNil(q["includeCollections"])
     }
 
-    // MARK: - Jellyfin
-
-    private let jellyfinServer = FakeJellyfinServer()
-
-    private func jellyfin() -> JellyfinProvider {
-        JellyfinProvider(serverID: "srv", displayName: "NAS", userID: "user-1",
-                         client: JellyfinClient(baseURL: JellyfinFixtures.baseURL, token: "tok",
-                                                transport: jellyfinServer.transport))
-    }
-
-    func test_jellyfin_tvLibraryAsksForRandomEpisodesRecursively() async throws {
-        jellyfinServer.respond("/Items", body: #"{"Items":[{"Id":"e1","Name":"Pilot","Type":"Episode"}],"TotalRecordCount":98}"#)
-        let items = try await jellyfin().shuffledItems(in: library(.shows, id: "lib-tv", providerID: "jellyfin:srv"),
-                                                       unwatchedOnly: false, limit: 200)
-        XCTAssertEqual(items.map(\.ref.itemID), ["e1"])
-        let request = try XCTUnwrap(jellyfinServer.requests.first)
-        let q = queryDict(request.url)
-        XCTAssertEqual(request.url?.path, "/Items")
-        XCTAssertEqual(q["parentId"], "lib-tv")
-        XCTAssertEqual(q["recursive"], "true")
-        XCTAssertEqual(q["includeItemTypes"], "Episode")
-        XCTAssertEqual(q["sortBy"], "Random")
-        XCTAssertEqual(q["limit"], "200")
-        XCTAssertEqual(q["isMissing"], "false", "no unaired placeholder episodes")
-        XCTAssertNil(q["filters"])
-    }
-
-    func test_jellyfin_unwatchedSendsIsUnplayed() async throws {
-        jellyfinServer.respond("/Items", body: #"{"Items":[],"TotalRecordCount":0}"#)
-        _ = try await jellyfin().shuffledItems(in: library(.movies, id: "lib-m", providerID: "jellyfin:srv"),
-                                               unwatchedOnly: true, limit: 200)
-        let q = queryDict(jellyfinServer.requests.first?.url)
-        XCTAssertEqual(q["includeItemTypes"], "Movie")
-        XCTAssertEqual(q["filters"], "IsUnplayed")
-    }
-
-    func test_jellyfin_typesPerLibraryKind() {
-        XCTAssertEqual(JellyfinProvider.shuffleItemTypes(for: .movies), "Movie")
-        XCTAssertEqual(JellyfinProvider.shuffleItemTypes(for: .shows), "Episode")
-        XCTAssertEqual(JellyfinProvider.shuffleItemTypes(for: .mixed), "Movie,Video,MusicVideo,Episode")
-    }
-
-    // MARK: - Emby
-
-    private let embyServer = FakeEmbyServer()
-    private var embyItems: String { "/Users/\(EmbyLiveFixtures.userID)/Items" }
-
-    private func emby() -> EmbyProvider {
-        EmbyProvider(serverID: "srv", displayName: "Emby", userID: EmbyLiveFixtures.userID, policy: EmbySession.Policy(),
-                     client: EmbyClient(baseURL: EmbyBrowseFixtures.baseURL, token: "tok", transport: embyServer.transport))
-    }
-
-    override func tearDown() async throws {
-        XCTAssertEqual(embyServer.headerProblems, [])
-        try await super.tearDown()
-    }
-
-    func test_emby_mixedLibraryAsksForRandomVideosOfEveryKind() async throws {
-        embyServer.respond(embyItems, body: #"{"Items":[{"Id":"333","Name":"Clip","Type":"Video"}],"TotalRecordCount":623}"#)
-        let items = try await emby().shuffledItems(in: library(.mixed, id: "11", providerID: "emby:srv"),
-                                                   unwatchedOnly: false, limit: 200)
-        XCTAssertEqual(items.map(\.ref.itemID), ["333"])
-        let request = try XCTUnwrap(embyServer.requests.first)
-        let q = queryDict(request.url)
-        XCTAssertEqual(request.url?.path, embyItems)
-        XCTAssertEqual(q["ParentId"], "11")
-        XCTAssertEqual(q["Recursive"], "true")
-        XCTAssertEqual(q["IncludeItemTypes"], "Movie,Video,MusicVideo,Episode")
-        XCTAssertEqual(q["SortBy"], "Random")
-        XCTAssertEqual(q["Limit"], "200")
-        XCTAssertEqual(q["ExcludeLocationTypes"], "Virtual", "no unaired placeholder episodes")
-        XCTAssertNil(q["Filters"])
-    }
-
-    func test_emby_dropsAVirtualEpisodeTheServerSendsAnyway() async throws {
-        embyServer.respond(embyItems, body: """
-            {"Items":[{"Id":"1","Name":"Aired","Type":"Episode","LocationType":"FileSystem"},
-                      {"Id":"2","Name":"Unaired","Type":"Episode","LocationType":"Virtual"}],"TotalRecordCount":2}
-            """)
-        let items = try await emby().shuffledItems(in: library(.shows, id: "5", providerID: "emby:srv"),
-                                                   unwatchedOnly: false, limit: 200)
-        XCTAssertEqual(items.map(\.ref.itemID), ["1"])
-    }
-
-    func test_emby_unwatchedSendsIsUnplayed() async throws {
-        embyServer.respond(embyItems, body: #"{"Items":[],"TotalRecordCount":0}"#)
-        _ = try await emby().shuffledItems(in: library(.shows, id: "5", providerID: "emby:srv"),
-                                           unwatchedOnly: true, limit: 200)
-        let q = queryDict(embyServer.requests.first?.url)
-        XCTAssertEqual(q["IncludeItemTypes"], "Episode")
-        XCTAssertEqual(q["Filters"], "IsUnplayed")
-    }
-
     // MARK: - Queues
 
     private func episode(_ id: String) -> MediaItem {
@@ -239,21 +145,21 @@ final class LibraryShuffleTests: XCTestCase {
     }
 
     func test_libraryQueue_asksForTheCapAndPlaysWhatCameBack() async throws {
-        jellyfinServer.respond("/Items", body: """
-            {"Items":[{"Id":"a","Name":"A","Type":"Movie"},{"Id":"b","Name":"B","Type":"Movie"}],"TotalRecordCount":2}
-            """)
-        let queue = try await jellyfin().shuffleQueue(for: library(.movies, id: "lib-m", providerID: "jellyfin:srv"))
+        let network = StubNetwork()
+        var a = PlexMetadata(); a.ratingKey = "a"; a.type = "movie"
+        var b = PlexMetadata(); b.ratingKey = "b"; b.type = "movie"
+        network.reply = [a, b]
+        let queue = try await plex(network).shuffleQueue(for: library(.movies, id: "lib-m"))
         XCTAssertEqual(Set(try XCTUnwrap(queue).entries.map(\.ref.itemID)), ["a", "b"])
-        XCTAssertEqual(queryDict(jellyfinServer.requests.first?.url)["limit"], String(MediaLibrary.shuffleLimit))
+        XCTAssertEqual(network.calls.first?.size, MediaLibrary.shuffleLimit)
         XCTAssertEqual(MediaLibrary.shuffleLimit, 200)
     }
 
     func test_libraryQueue_isNilForAnEmptyLibrary() async throws {
-        jellyfinServer.respond("/Items", body: #"{"Items":[],"TotalRecordCount":0}"#)
-        let queue = try await jellyfin().shuffleQueue(for: library(.movies, id: "lib-m", providerID: "jellyfin:srv"),
-                                                      unwatchedOnly: true)
+        let network = StubNetwork()
+        let queue = try await plex(network).shuffleQueue(for: library(.movies, id: "lib-m"), unwatchedOnly: true)
         XCTAssertNil(queue)
-        XCTAssertEqual(queryDict(jellyfinServer.requests.first?.url)["filters"], "IsUnplayed")
+        XCTAssertEqual(network.calls.first?.filters.map { "\($0.name)=\($0.value ?? "")" }, ["unwatched=1"])
     }
 
     func test_defaultProviderRefusesALibraryShuffle() async {

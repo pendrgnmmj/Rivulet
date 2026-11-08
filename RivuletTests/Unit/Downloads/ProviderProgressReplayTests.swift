@@ -7,20 +7,20 @@ import XCTest
 @MainActor
 final class ProviderProgressReplayTests: XCTestCase {
     private let t0 = Date(timeIntervalSince1970: 1_790_000_000)
-    private let providerID = "jellyfin:srv"
+    private let providerID = "plex:main"
 
     private func entry(_ id: String, offset: Int = 600_000, watched: Bool = false, seconds: TimeInterval = 100,
-                       provider: String = "jellyfin:srv", account: String? = "u1", profile: String? = nil)
+                       provider: String = "plex:main", account: String? = "u1", profile: String? = nil)
         -> OfflineProgressLog.Entry {
         .init(providerID: provider, profileID: profile, accountID: account, itemID: id, offsetMs: offset,
               durationMs: 1_320_000, watched: watched, at: t0.addingTimeInterval(seconds))
     }
 
     private func stub(lastViewed: [String: Date] = [:], missing: Set<String> = []) -> StubMediaProvider {
-        let stub = StubMediaProvider(id: providerID, kind: .jellyfin)
+        let stub = StubMediaProvider(id: providerID, kind: .plex)
         stub.detailResultFor = { ref in
             if missing.contains(ref.itemID) { throw MediaProviderError.notFound }
-            var item = JellyfinFixtures.mediaItem(ref.itemID, providerID: "jellyfin:srv")
+            var item = MediaItemFixtures.mediaItem(ref.itemID, providerID: "plex:main")
             item.userState = MediaUserState(isPlayed: false, viewOffset: 0, isFavorite: false, lastViewedAt: lastViewed[ref.itemID])
             return MediaItemDetail(item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [],
                                    chapters: [], mediaSources: [], trailerURL: nil, contentRating: nil, nextEpisode: nil,
@@ -35,7 +35,7 @@ final class ProviderProgressReplayTests: XCTestCase {
         let mine = entry("a")
         let entries = [
             mine,
-            entry("b", provider: "emby:srv"),
+            entry("b", provider: "plex:other"),
             entry("c", account: "u2"),
             entry("d", profile: "7"),
             entry("e", provider: "plex:srv", account: nil),

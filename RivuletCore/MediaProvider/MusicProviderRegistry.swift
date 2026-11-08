@@ -42,13 +42,9 @@ final class MusicProviderRegistry {
         currentPlexID.flatMap { providers[$0] }
     }
 
-    /// Each signed-in server once, Plex first, then each other kind in
-    /// `MediaProviderKind` order (a kind's servers sorted by id). Stale Plex ids kept for old refs are left out.
+    /// The signed-in server, Plex only. Stale Plex ids kept for old refs are left out.
     var signedInProviders: [any MusicProvider] {
         [primaryProvider].compactMap { $0 }
-            + MediaProviderKind.otherServerKinds.flatMap { kind in
-                providers.values.filter { $0.kind == kind }.sorted { $0.id < $1.id }
-            }
     }
 
     func register(_ provider: any MusicProvider) {
@@ -62,11 +58,9 @@ final class MusicProviderRegistry {
     }
 
     /// Brings the registry in line with what is signed in: the Plex server from
-    /// `PlexAuthManager.shared`, each other kind's server from its stored account
-    /// (`OtherServerKind`). Called at app launch, after Plex auth changes (sign-in,
-    /// sign-out, server switch), and after another server's sign-in or sign-out.
+    /// `PlexAuthManager.shared`. Called at app launch, after Plex auth changes
+    /// (sign-in, sign-out, server switch).
     func populateFromCurrentAuth() {
-        OtherServerKind.all.forEach(populateOtherServer)
         let auth = PlexAuthManager.shared
         guard
             let serverURL = auth.selectedServerURL,
@@ -94,20 +88,6 @@ final class MusicProviderRegistry {
         // hashed id changes with the address, so there a new address does count as a rebuild.
         if (providers[provider.id] as? PlexMusicProvider)?.authToken != token { generation += 1 }
         register(provider)
-    }
-
-    /// Rebuilt from the stored account each time, as `MediaProviderRegistry` does.
-    private func populateOtherServer(_ other: OtherServerKind) {
-        let stored = other.storedMusicProvider()
-        let previous = providers.values.first { $0.kind == other.kind }
-        let same = switch (previous, stored) {
-        case (nil, nil): true
-        case let (previous?, stored?): previous.id == stored.id && other.isSameMusicAccount(previous, stored)
-        default: false
-        }
-        if !same { generation += 1 }
-        providers = providers.filter { $0.value.kind != other.kind }
-        if let stored { register(stored) }
     }
 
     /// Process-stable hash. Avoid `String.hashValue` (per-process randomized).

@@ -11,7 +11,7 @@ import XCTest
 
 final class HomeHeroTests: XCTestCase {
     private func item(_ id: String, provider: String = "plex:a", art: Bool = true, show: String? = nil) -> MediaItem {
-        var base = JellyfinFixtures.mediaItem(id, providerID: provider, grandparent: show)
+        var base = MediaItemFixtures.mediaItem(id, providerID: provider, grandparent: show)
         if art {
             base = MediaItem(ref: base.ref, kind: base.kind, title: base.title, sortTitle: nil, overview: nil, year: nil,
                              runtime: nil, parentRef: nil, grandparentRef: base.grandparentRef, episodeNumber: nil,
@@ -54,7 +54,7 @@ final class HomeHeroTests: XCTestCase {
 
     func test_recentlyAdded_takesOneFromEachRowInTurn() {
         let a = shelf("plex:a|movie.recentlyadded.1", [item("a1"), item("a2")])
-        let b = shelf("jellyfin:s|m.recentlyAdded", [item("b1", provider: "jellyfin:s"), item("b2", provider: "jellyfin:s")])
+        let b = shelf("plex:s|m.recentlyAdded", [item("b1", provider: "plex:s"), item("b2", provider: "plex:s")])
         let other = shelf("plex:a|genre", [item("g1")])
         let result = items([.recentlyAdded], shelves: [a, other, b])
         XCTAssertEqual(result.map(\.ref.itemID), ["a1", "b1", "a2", "b2"])
@@ -85,9 +85,9 @@ final class HomeHeroTests: XCTestCase {
     func test_items_mixSourcesFavoritesAndHeroPlaylists() {
         let fav = PersonalRow(id: "plex:a|fav", providerID: "plex:a", title: "Favorite Movies",
                               identifier: PersonalRows.favoritesIdentifier(.movies), libraryKey: "1", items: [item("f1"), item("f2")])
-        let pin = HomePlaylistPins.Pin(providerID: "jellyfin:s", playlistID: "p1", title: "Classics")
-        let list = PersonalRow(id: PersonalRows.playlistRowID(providerID: "jellyfin:s", playlistID: "p1"), providerID: "jellyfin:s",
-                               title: "Classics", identifier: "x", libraryKey: nil, items: [item("l1", provider: "jellyfin:s")])
+        let pin = HomePlaylistPins.Pin(providerID: "plex:s", playlistID: "p1", title: "Classics")
+        let list = PersonalRow(id: PersonalRows.playlistRowID(providerID: "plex:s", playlistID: "p1"), providerID: "plex:s",
+                               title: "Classics", identifier: "x", libraryKey: nil, items: [item("l1", provider: "plex:s")])
         let result = items([.trending, .favoriteMovies], trending: [item("t1"), item("t2")], personal: [fav, list], heroPins: [pin])
         XCTAssertEqual(result.map(\.ref.itemID), ["t1", "f1", "l1", "t2", "f2"])
     }
@@ -100,8 +100,8 @@ final class HomeHeroTests: XCTestCase {
     func test_trendingSource_asksEveryProvider_filtersArt_andCaps() async {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.ownedItemsResult = (0..<8).map { item("p\($0)", art: $0 != 0) }
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.ownedItemsResult = (0..<8).map { item("j\($0)", provider: "jellyfin:s") }
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.ownedItemsResult = (0..<8).map { item("j\($0)", provider: "plex:s") }
         let sources = HomeHeroSources()
         sources.trendingTitles = { (1...8).map { TitleMatch(kind: .movie, externalIDs: ["tmdb": "\($0)"], plexGUID: nil) } }
 
@@ -124,7 +124,7 @@ final class HomeHeroTests: XCTestCase {
         _ = await sources.trending(providers: [plex])
         XCTAssertEqual(asked, 1)
 
-        let other = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let other = StubMediaProvider(id: "plex:s", kind: .plex)
         _ = await sources.trending(providers: [plex, other])
         XCTAssertEqual(asked, 2, "a different set of servers is a different answer")
     }

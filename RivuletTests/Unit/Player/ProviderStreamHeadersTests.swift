@@ -32,7 +32,7 @@ final class ProviderStreamHeadersTests: XCTestCase {
     }
 
     private func playback(_ provider: StubMediaProvider, _ stream: StreamInfo, extrasPending: Bool = false) -> ProviderPlayback {
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         let detail = MediaItemDetail(
             item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [], chapters: [],
             mediaSources: [stream.source], trailerURL: nil, contentRating: nil, nextEpisode: nil, collections: [])
@@ -81,7 +81,7 @@ final class ProviderStreamHeadersTests: XCTestCase {
     }
 
     func test_viewModel_markersArriveAfterTheStart() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         provider.extrasResult = PlaybackExtras(markers: [PlaybackMarker(kind: .intro, start: 1, end: 61)])
         let vm = UniversalPlayerViewModel(
             providerPlayback: playback(provider, stream(.directPlay, url: directURL, headers: [:]), extrasPending: true),
@@ -92,7 +92,7 @@ final class ProviderStreamHeadersTests: XCTestCase {
     }
 
     func test_viewModel_markersAlreadyPreparedAreNotFetchedAgain() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         _ = UniversalPlayerViewModel(providerPlayback: playback(provider, stream(.directPlay, url: directURL, headers: [:])),
                                      startOffset: nil)
         try await Task.sleep(for: .milliseconds(100))

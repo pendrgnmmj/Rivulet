@@ -359,15 +359,4 @@ final class MusicQueueAgnosticTests: XCTestCase {
         XCTAssertEqual(queue.currentLyrics, stub.lyricLines)
     }
 
-    func test_liveTV_sessions_stand_music_down_until_the_last_ends() {
-        let queue = MusicQueue.shared
-        let player = NSObject(), multiview = NSObject()
-        queue.liveTVSessionBegan(ObjectIdentifier(player))
-        queue.liveTVSessionBegan(ObjectIdentifier(multiview))
-        queue.liveTVSessionEnded(ObjectIdentifier(player))
-        queue.liveTVSessionEnded(ObjectIdentifier(player))  // a second end is harmless
-        XCTAssertTrue(queue.videoOwnsNowPlaying)
-        queue.liveTVSessionEnded(ObjectIdentifier(multiview))
-        XCTAssertFalse(queue.videoOwnsNowPlaying)
-    }
 }

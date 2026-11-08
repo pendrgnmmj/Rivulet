@@ -62,10 +62,10 @@ nonisolated enum DownloadRules {
     }
 
     /// The transfer's own non-2xx answer, or 0 when the file came up short. Retryable statuses wait.
-    static func state(afterRejectedStatus status: Int, converted: Bool, kind: MediaProviderKind = .plex) -> DownloadState {
+    static func state(afterRejectedStatus status: Int, converted: Bool) -> DownloadState {
         if status == 0 { return .failed(reason: shortFileReason) }
         if status == 503, converted { return .preparing(progress: 100) }
-        return failureReason(httpStatus: status, kind: kind).map { .failed(reason: $0) } ?? .waitingForServer
+        return failureReason(httpStatus: status).map { .failed(reason: $0) } ?? .waitingForServer
     }
 
     /// What a bound transfer needs on this path, given the setting and the cellular flag its request carries.
@@ -90,11 +90,9 @@ nonisolated enum DownloadRules {
     }
 
     /// The reason to show for an HTTP status, or nil when it is worth retrying later.
-    static func failureReason(httpStatus status: Int, kind: MediaProviderKind = .plex) -> String? {
+    static func failureReason(httpStatus status: Int) -> String? {
         switch status {
-        case 401 where kind != .plex: String(localized: "The server didn't accept the sign-in; sign in again, then retry")
         case 401: String(localized: "Plex didn't accept the sign-in; sign in again, then retry")
-        case 403 where kind != .plex: notAllowedReason
         case 403: remotePassReason
         case 404, 410: String(localized: "The file is no longer on the server")
         case 408, 429: nil

@@ -10,7 +10,6 @@ final class ShellSidebarModelTests: XCTestCase {
     private func sections(_ servers: [(providerID: String, name: String, libraries: [MediaLibrary])]) -> [ShellSidebarSection] {
         ShellSidebarModel.sections(
             libraries: servers.flatMap { server in server.libraries.map { SidebarLibrary($0, serverName: server.name) } },
-            liveTVSources: [], combineLiveTV: true,
             showDiscover: false, showWatchlist: false,
             profileName: "Bain")
     }
@@ -18,7 +17,7 @@ final class ShellSidebarModelTests: XCTestCase {
     func test_favorites_showWithAnyMediaServer_andLeadBesideTheWatchlist() {
         func tabs(showFavorites: Bool, hasServer: Bool) -> [SidebarTab] {
             ShellSidebarModel.sections(
-                libraries: [], liveTVSources: [], combineLiveTV: true,
+                libraries: [],
                 showDiscover: false, showWatchlist: true, showFavorites: showFavorites,
                 profileName: "Bain", hasMediaServer: hasServer)
                 .flatMap(\.items).map(\.tab)
@@ -31,17 +30,14 @@ final class ShellSidebarModelTests: XCTestCase {
 
     func test_favorites_areOffUnlessAskedFor() {
         let rows = ShellSidebarModel.arrangeableRows(
-            libraries: [], liveTVSources: [], combineLiveTV: true, showDiscover: false, showWatchlist: false)
+            libraries: [], showDiscover: false, showWatchlist: false)
         XCTAssertFalse(rows.contains { $0.key == SidebarArrangement.favorites })
     }
 
-    private func tabs(hasServer: Bool, liveTV: Bool, libraries: [PlexLibrary] = [],
+    private func tabs(hasServer: Bool, libraries: [PlexLibrary] = [],
                       playlistServers: [PlaylistServer] = []) -> [SidebarTab] {
-        let source = LiveTVDataStore.LiveTVSourceInfo(
-            id: "m3u", sourceType: .genericM3U, displayName: "IPTV", channelCount: 10, isConnected: true, lastSync: nil)
-        return ShellSidebarModel.sections(
+        ShellSidebarModel.sections(
             libraries: libraries.map { SidebarLibrary(plex: $0, serverName: "Angel") },
-            liveTVSources: liveTV ? [source] : [], combineLiveTV: true,
             showDiscover: true, showWatchlist: true,
             profileName: "Account", hasMediaServer: hasServer,
             playlistServers: playlistServers)
@@ -76,11 +72,11 @@ final class ShellSidebarModelTests: XCTestCase {
 
     /// The arrangeable sections alone: no profile, Search/Home or Settings.
     private func middle(_ libraries: [SidebarLibrary], playlistServers: [PlaylistServer] = []) -> [ShellSidebarSection] {
-        Array(ShellSidebarModel.sections(libraries: libraries, liveTVSources: [], combineLiveTV: true,
+        Array(ShellSidebarModel.sections(libraries: libraries,
                                          showDiscover: false, showWatchlist: false,
                                          // The libraries' order as the profile stored it.
                                          order: SidebarArrangement.seed(libraryOrder: libraries.map(\.key),
-                                                                        discoverAbove: true, liveTVAbove: false),
+                                                                        discoverAbove: true),
                                          profileName: "Bain",
                                          playlistServers: playlistServers).dropFirst(2).dropLast())
     }
@@ -93,18 +89,14 @@ final class ShellSidebarModelTests: XCTestCase {
                playlistServers: playlistServers)
     }
 
-    func test_liveTVOnly_hidesServerTabs_andHome() {
-        XCTAssertEqual(tabs(hasServer: false, liveTV: true), [.account, .liveTV(sourceId: nil), .settings])
-    }
-
     func test_nothingConnected_keepsHomeForTheWelcome() {
-        XCTAssertEqual(tabs(hasServer: false, liveTV: false), [.account, .home, .settings])
+        XCTAssertEqual(tabs(hasServer: false), [.account, .home, .settings])
     }
 
     func test_withServer_keepsEveryTab() {
-        XCTAssertEqual(tabs(hasServer: true, liveTV: true, libraries: [movies], playlistServers: [primary]),
+        XCTAssertEqual(tabs(hasServer: true, libraries: [movies], playlistServers: [primary]),
                        [.account, .search, .home, .discover, .watchlist, .library(key: "1"),
-                        .playlists(providerID: "plex:primary"), .liveTV(sourceId: nil), .settings])
+                        .playlists(providerID: "plex:primary"), .settings])
     }
 
     func test_playlistsRow_onlyForServersWithPlaylists() {
@@ -215,7 +207,7 @@ final class ShellSidebarModelTests: XCTestCase {
     func test_profileHeader_isItsOwnFirstSection_withFirstNameAndAvatar() {
         let avatar = URL(string: "https://plex.tv/users/abc/avatar")
         let all = ShellSidebarModel.sections(
-            libraries: [], liveTVSources: [], combineLiveTV: true,
+            libraries: [],
             showDiscover: false, showWatchlist: false,
             profileName: "William Gurley", profileAvatar: avatar)
 
@@ -228,7 +220,7 @@ final class ShellSidebarModelTests: XCTestCase {
     func test_profileHeader_canSwitchProfile_followsTheArgument() {
         func header(_ canSwitch: Bool) -> ShellSidebarItem? {
             ShellSidebarModel.sections(
-                libraries: [], liveTVSources: [], combineLiveTV: true,
+                libraries: [],
                 showDiscover: false, showWatchlist: false,
                 profileName: "Bain",
                 canSwitchProfile: canSwitch)[0].items.first
@@ -241,7 +233,7 @@ final class ShellSidebarModelTests: XCTestCase {
     func test_nowPlaying_joinsTheProfileSlot_withoutAddingARowOrASection() {
         func build(_ playing: SidebarNowPlaying?) -> [ShellSidebarSection] {
             ShellSidebarModel.sections(
-                libraries: [], liveTVSources: [], combineLiveTV: true,
+                libraries: [],
                 showDiscover: false, showWatchlist: false,
                 profileName: "Bain", nowPlaying: playing)
         }

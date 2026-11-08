@@ -1,7 +1,0 @@
-#EXTM3U
-#EXTINF:-1 tvg-id="ch1" tvg-name="Channel One HD" tvg-logo="http://example.com/logo1.png" group-title="News" tvg-chno="1",Channel One HD
-http://example.com/stream1.m3u8
-#EXTINF:-1 tvg-id="ch2" tvg-name="Channel Two" tvg-logo="http://example.com/logo2.png" group-title="Sports" tvg-chno="2",Channel Two
-http://example.com/stream2.m3u8
-#EXTINF:-1 tvg-id="ch3" tvg-name="Channel Three 1080p" tvg-logo="http://example.com/logo3.png" group-title="Movies" tvg-chno="3",Channel Three 1080p
-http://example.com/stream3.m3u8

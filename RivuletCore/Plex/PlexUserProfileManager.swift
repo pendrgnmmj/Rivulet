@@ -166,7 +166,6 @@ class PlexUserProfileManager: ObservableObject {
         // Nothing learned about a saved profile this build never resolved: it runs
         // as it did before the update instead of stranding an owner who is offline.
         if homeUsers.isEmpty, PlexAuthManager.shared.useAccountTokenWhileUnresolved() {
-            LiveTVDataStore.shared.plexContentTokenChanged()
             Self.onInitialProfileSelected?()
         }
         // Still locked (PIN needed, profile gone, plex.tv unreachable): the host asks.
@@ -235,7 +234,6 @@ class PlexUserProfileManager: ObservableObject {
                 return .unavailable
             }
 
-            let wasWithheld = PlexAuthManager.shared.isContentWithheld
             let contentOwnerChanged = PlexAuthManager.shared.enterProfile(
                 user, serverToken: serverAccessToken, usedPin: pin != nil)
 
@@ -253,9 +251,6 @@ class PlexUserProfileManager: ObservableObject {
             if contentOwnerChanged {
                 await contentOwnerDidChange()
             } else {
-                if wasWithheld {
-                    LiveTVDataStore.shared.plexContentTokenChanged()
-                }
                 if previousUser == nil {
                     // Initial selection on app launch: sync user-specific settings
                     Self.onInitialProfileSelected?()
@@ -271,12 +266,11 @@ class PlexUserProfileManager: ObservableObject {
         }
     }
 
-    /// Account-level content and Live TV belong to the previous user too.
+    /// Account-level content belongs to the previous user too.
     private func contentOwnerDidChange() async {
         PlexWatchlistService.shared.reset()
         Task { await PlexWatchlistService.shared.fetchWatchlist(force: true) }
         await Self.onProfileChanged?()
-        LiveTVDataStore.shared.plexContentTokenChanged()
     }
 
     /// Withholds content until a profile is entered. The saved profile stays
@@ -404,8 +398,6 @@ class PlexUserProfileManager: ObservableObject {
                 break
             case .keep:
                 selectedUser = savedUser
-                // A managed profile's IPTV was withheld until its content limits were known (#502).
-                LiveTVDataStore.shared.plexContentTokenChanged()
             case .useAccount:
                 let wasWithheld = PlexAuthManager.shared.isContentWithheld
                 selectedUser = savedUser
@@ -413,7 +405,6 @@ class PlexUserProfileManager: ObservableObject {
                 if PlexAuthManager.shared.useAccountServerToken(for: savedUser) {
                     await contentOwnerDidChange()
                 } else if wasWithheld {
-                    LiveTVDataStore.shared.plexContentTokenChanged()
                     // The token arrived without an entry: the host loads under it.
                     Self.onInitialProfileSelected?()
                 }

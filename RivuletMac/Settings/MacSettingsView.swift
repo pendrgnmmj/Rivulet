@@ -5,10 +5,8 @@ import SwiftUI
 
 /// The Settings window (Cmd-,). One tab per iOS settings page. Parity sources, all in
 /// RivuletiOS/Settings/: IOSAccountView (Account, General), IOSHomeSettings (Home, Library),
-/// IOSSettingsPages (Playback), IOSLiveTVSettingsView (Live TV). Downloads is iOS only.
+/// IOSSettingsPages (Playback). Downloads is iOS only.
 struct MacSettingsView: View {
-    @ObservedObject private var profiles = PlexUserProfileManager.shared
-
     var body: some View {
         TabView {
             MacAccountView()
@@ -19,11 +17,6 @@ struct MacSettingsView: View {
                 .tabItem { Label("Library", systemImage: "rectangle.stack") }
             MacPlaybackSettingsView()
                 .tabItem { Label("Playback", systemImage: "play.rectangle") }
-            // Sources and server choice are the owner's, not a restricted profile's.
-            if !profiles.isRestrictedProfile {
-                MacLiveTVSettingsView()
-                    .tabItem { Label("Live TV", systemImage: "play.tv") }
-            }
             MacGeneralSettingsView()
                 .tabItem { Label("General", systemImage: "gearshape") }
         }

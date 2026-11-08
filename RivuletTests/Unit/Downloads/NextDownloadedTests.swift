@@ -8,7 +8,7 @@ import XCTest
 final class NextDownloadedTests: XCTestCase {
     private func episode(_ id: String, show: String = "show", season: Int, number: Int, provider: String = "jellyfin:srv",
                          state: DownloadState = .completed) -> DownloadRecord {
-        var item = JellyfinFixtures.mediaItem(id, kind: .episode, providerID: provider, grandparent: show)
+        var item = MediaItemFixtures.mediaItem(id, kind: .episode, providerID: provider, grandparent: show)
         item = MediaItem(ref: item.ref, kind: .episode, title: id, sortTitle: nil, overview: nil, year: nil, runtime: nil,
                          parentRef: nil, grandparentRef: item.grandparentRef, seriesTitle: "Show",
                          episodeNumber: number, seasonNumber: season, childProgress: nil, userState: item.userState,

@@ -46,34 +46,6 @@ final class FavoritesTests: XCTestCase {
         XCTAssertFalse(PlexUserRating.isFavorite(6), "three stars is not")
     }
 
-    func test_jellyfin_postsAndDeletesUserFavoriteItems() async throws {
-        let server = FakeJellyfinServer()
-        server.respond("/UserFavoriteItems/m1", body: "{}")
-        let jellyfin = JellyfinProvider(serverID: "srv", displayName: "NAS", userID: "user-1",
-                                        client: JellyfinClient(baseURL: JellyfinFixtures.baseURL, token: "tok",
-                                                               transport: server.transport))
-        let ref = MediaItemRef(providerID: "jellyfin:srv", itemID: "m1")
-        try await jellyfin.setFavorite(true, for: ref)
-        try await jellyfin.setFavorite(false, for: ref)
-        XCTAssertEqual(server.requests.map(\.httpMethod), ["POST", "DELETE"])
-        XCTAssertEqual(server.requests.map { $0.url!.path }, ["/UserFavoriteItems/m1", "/UserFavoriteItems/m1"])
-    }
-
-    func test_emby_postsAndDeletesTheUsersRoute() async throws {
-        let server = FakeEmbyServer()
-        let uid = EmbyLiveFixtures.userID
-        server.respond("/Users/\(uid)/FavoriteItems/1076", method: "POST", body: "{}")
-        server.respond("/Users/\(uid)/FavoriteItems/1076", method: "DELETE", body: "{}")
-        let emby = EmbyProvider(serverID: "srv", displayName: "Emby", userID: uid, policy: EmbySession.Policy(),
-                                client: EmbyClient(baseURL: EmbyBrowseFixtures.baseURL, token: "tok",
-                                                   transport: server.transport))
-        let ref = MediaItemRef(providerID: "emby:srv", itemID: "1076")
-        try await emby.setFavorite(true, for: ref)
-        try await emby.setFavorite(false, for: ref)
-        XCTAssertEqual(server.requests.map { "\($0.httpMethod ?? "") \($0.url!.path)" },
-                       ["POST /Users/\(uid)/FavoriteItems/1076", "DELETE /Users/\(uid)/FavoriteItems/1076"])
-    }
-
     func test_aServerWithoutFavorites_refusesTheWrite() async {
         do {
             try await StubMediaProvider().setFavorite(true, for: MediaItemRef(providerID: "stub", itemID: "1"))
@@ -98,17 +70,17 @@ final class FavoritesTests: XCTestCase {
         plex.favoritesByLibrary = ["m": [item("1", "Heat", provider: "plex:a")],
                                    "s": [item("2", "Andor", kind: .show, provider: "plex:a")],
                                    "mu": [item("9", "Not video", provider: "plex:a")]]
-        let jellyfin = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jellyfin.favoritesSupported = true
-        jellyfin.libraryList = [MediaLibrary(id: "m", providerID: "jellyfin:s", title: "Films", kind: .movies)]
-        jellyfin.favoritesByLibrary = ["m": [item("3", "Heat", provider: "jellyfin:s")]]
-        let none = StubMediaProvider(id: "emby:x", kind: .emby)
-        none.libraryList = [MediaLibrary(id: "m", providerID: "emby:x", title: "Films", kind: .movies)]
-        none.favoritesByLibrary = ["m": [item("4", "Hidden", provider: "emby:x")]]
+        let other = StubMediaProvider(id: "plex:s", kind: .plex)
+        other.favoritesSupported = true
+        other.libraryList = [MediaLibrary(id: "m", providerID: "plex:s", title: "Films", kind: .movies)]
+        other.favoritesByLibrary = ["m": [item("3", "Heat", provider: "plex:s")]]
+        let none = StubMediaProvider(id: "plex:x", kind: .plex)
+        none.libraryList = [MediaLibrary(id: "m", providerID: "plex:x", title: "Films", kind: .movies)]
+        none.favoritesByLibrary = ["m": [item("4", "Hidden", provider: "plex:x")]]
 
-        let items = await FavoritesFeed.load(from: [plex, jellyfin, none])
+        let items = await FavoritesFeed.load(from: [plex, other, none])
         XCTAssertEqual(items.map(\.title), ["Andor", "Heat", "Heat"], "the same title on two servers shows twice")
-        XCTAssertEqual(Set(items.map(\.ref.providerID)), ["plex:a", "jellyfin:s"])
+        XCTAssertEqual(Set(items.map(\.ref.providerID)), ["plex:a", "plex:s"])
         XCTAssertTrue(FavoritesFeed.isAvailable([plex]))
         XCTAssertFalse(FavoritesFeed.isAvailable([none]))
     }

@@ -56,11 +56,6 @@ enum ExtraPlayer {
             return
         }
         let key = trailer.playbackKey ?? trailer.id
-        // Off Plex an extra is a library item of its own provider.
-        if let provider = MediaProviderRegistry.shared.provider(for: trailer.providerID), provider.kind != .plex {
-            playProviderExtra(MediaItemRef(providerID: trailer.providerID, itemID: key), provider: provider, from: presenter)
-            return
-        }
         let server = server ?? MediaProviderRegistry.shared.plexServer(for: trailer.providerID)
         let route = ExtraPlaybackKey.route(for: key)
 
@@ -109,18 +104,6 @@ enum ExtraPlayer {
                         confirmTitle: String(localized: "OK"), cancelTitle: nil, onConfirm: {}), animated: true)
                 }
             }), animated: true)
-    }
-
-    private static func playProviderExtra(_ ref: MediaItemRef, provider: any MediaProvider, from presenter: UIViewController) {
-        Task { [weak presenter] in
-            do {
-                let detail = try await provider.fullDetail(for: ref)
-                guard let presenter else { return }
-                ProviderPlayer.play(detail.item, fromBeginning: false, from: presenter, onDismiss: nil)
-            } catch {
-                extraPlayerLog.error("extra play: \(error.localizedDescription, privacy: .public)")
-            }
-        }
     }
 
     /// Minimal PlexMetadata standing in for a non-library extra, carrying the

@@ -46,11 +46,9 @@ enum CrossfadeOption: String, CaseIterable, Hashable, CustomStringConvertible {
 
 enum SettingsPage: Hashable, CaseIterable {
     case root
-    case appearance, playback, music, liveTV, servers, about
-    case plex, plexServerDetail, jellyfin, emby, iptv, libraries, cache
+    case appearance, playback, music, servers, about
+    case plex, plexServerDetail, libraries, cache
     case homeRows
-    case liveTVSourceDetail, liveTVFavorites
-    case addLiveTVSource, addXtream, addDispatcharr, addTvheadend, addThreadfin, addPlaylistURL
     case appIconPicker, homeHeroPicker, detailRatingPicker, autoplayCountdownPicker, skipIntervalPicker, skipBackIntervalPicker
     case subtitleModePicker, autoplayLimitPicker
     case homeQualityPicker, awayQualityPicker
@@ -63,22 +61,10 @@ enum SettingsPage: Hashable, CaseIterable {
         case .appearance: return String(localized: "Appearance")
         case .playback: return String(localized: "Playback")
         case .music: return String(localized: "Music")
-        case .liveTV: return String(localized: "Live TV")
         case .servers: return String(localized: "Servers")
         case .about: return String(localized: "About")
         case .plex: return String(localized: "Plex")
         case .plexServerDetail: return String(localized: "Server")
-        case .jellyfin: return String(localized: "Jellyfin Server")
-        case .emby: return String(localized: "Emby Server")
-        case .iptv: return String(localized: "Live TV Sources")
-        case .liveTVSourceDetail: return String(localized: "Source Details")
-        case .liveTVFavorites: return String(localized: "Favorites")
-        case .addLiveTVSource: return String(localized: "Add a Source")
-        case .addXtream: return String(localized: "Xtream Codes")
-        case .addDispatcharr: return String(localized: "Dispatcharr")
-        case .addTvheadend: return String(localized: "Tvheadend")
-        case .addThreadfin: return String(localized: "Threadfin")
-        case .addPlaylistURL: return String(localized: "Playlist URL")
         case .libraries: return String(localized: "Sidebar")
         case .homeRows: return String(localized: "Home Rows")
         case .cache: return String(localized: "Cache & Storage")

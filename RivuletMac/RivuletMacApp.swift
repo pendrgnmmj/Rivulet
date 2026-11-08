@@ -31,11 +31,7 @@ struct RivuletMacApp: App {
         session.installProfileHooks()
         _plex = StateObject(wrappedValue: session)
         _ = NetworkPathMonitor.shared
-        // The Live TV store re-keys old URL-named M3U favorites when it starts. That must finish
-        // before the first sync pass, or a playlist URL with its login could be uploaded as a channel id.
-        _ = LiveTVDataStore.shared
         CloudSync.shared.start()
-        LiveTVDataStore.shared.startBackgroundPreload()
 
         #if !DEBUG
         // Deferred and gated like tvOS and iOS: never in DEBUG, nothing to start without a DSN.

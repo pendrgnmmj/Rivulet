@@ -162,7 +162,7 @@ final class DownloadRulesTests: XCTestCase {
 
     // MARK: - Visibility
 
-    private func owned(_ id: String, provider: String = "jellyfin:srv", profile: String? = nil, account: String? = "u1") -> DownloadRecord {
+    private func owned(_ id: String, provider: String = "emby:srv", profile: String? = nil, account: String? = "u1") -> DownloadRecord {
         DownloadRecord(id: id, providerID: provider, profileID: profile, accountID: account, itemID: id, sourceID: id,
                        quality: "original", state: .completed, item: DownloadFixtures.item(id, providerID: provider),
                        metadata: PlexMetadata(ratingKey: id))
@@ -181,7 +181,7 @@ final class DownloadRulesTests: XCTestCase {
 
     func test_visible_anotherAccountOnTheSameServerHidesTheDownload() {
         let records = [owned("mine", account: "u1"), owned("theirs", account: "u2")]
-        let seen = DownloadRules.visible(records, profileID: nil, restricted: false, signedInAccounts: ["jellyfin:srv": "u1"])
+        let seen = DownloadRules.visible(records, profileID: nil, restricted: false, signedInAccounts: ["emby:srv": "u1"])
         XCTAssertEqual(seen.map(\.id), ["mine"])
     }
 
@@ -200,21 +200,8 @@ final class DownloadRulesTests: XCTestCase {
         XCTAssertNil(DownloadRules.totalLength(status: 206, contentRange: "bytes 0-0/*", contentLength: 1))
     }
 
-    func test_failureReason_otherServersSpeakForThemselves() {
-        XCTAssertEqual(DownloadRules.failureReason(httpStatus: 403, kind: .jellyfin), DownloadRules.notAllowedReason)
-        XCTAssertEqual(DownloadRules.failureReason(httpStatus: 403, kind: .emby), DownloadRules.notAllowedReason)
-        XCTAssertEqual(DownloadRules.failureReason(httpStatus: 403), DownloadRules.remotePassReason)
-        XCTAssertFalse(DownloadRules.failureReason(httpStatus: 401, kind: .jellyfin)?.contains("Plex") ?? true)
-        XCTAssertTrue(DownloadRules.failureReason(httpStatus: 401)?.contains("Plex") ?? false)
-        XCTAssertEqual(DownloadRules.failureReason(httpStatus: 404, kind: .emby), DownloadRules.failureReason(httpStatus: 404))
-        XCTAssertNil(DownloadRules.failureReason(httpStatus: 503, kind: .jellyfin))
-    }
-
-    func test_rejectedStatus_followsTheServersKind() {
-        XCTAssertEqual(DownloadRules.state(afterRejectedStatus: 403, converted: false, kind: .jellyfin),
-                       .failed(reason: DownloadRules.notAllowedReason))
-        XCTAssertEqual(DownloadRules.state(afterRejectedStatus: 403, converted: false),
-                       .failed(reason: DownloadRules.remotePassReason))
-        XCTAssertEqual(DownloadRules.state(afterRejectedStatus: 503, converted: false, kind: .emby), .waitingForServer)
-    }
+    // test_failureReason_otherServersSpeakForThemselves and test_rejectedStatus_followsTheServersKind
+    // exercised the `kind != .plex` branch of DownloadRules.failureReason/state. With Emby gone,
+    // MediaProviderKind has no non-Plex case left to construct, so that branch is currently
+    // unreachable (Phase 4 of the Plex-only strip-down should decide whether to delete it).
 }

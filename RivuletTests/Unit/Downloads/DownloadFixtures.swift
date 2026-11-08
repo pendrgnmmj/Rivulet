@@ -6,6 +6,6 @@ import Foundation
 
 enum DownloadFixtures {
     static func item(_ id: String, kind: MediaKind = .movie, providerID: String = "plex:srv") -> MediaItem {
-        JellyfinFixtures.mediaItem(id, kind: kind, providerID: providerID)
+        MediaItemFixtures.mediaItem(id, kind: kind, providerID: providerID)
     }
 }

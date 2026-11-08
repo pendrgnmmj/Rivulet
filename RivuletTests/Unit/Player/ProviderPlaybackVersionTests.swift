@@ -19,9 +19,9 @@ final class ProviderPlaybackVersionTests: XCTestCase {
     }
 
     private func stub(sources: [MediaSource]? = nil) -> StubMediaProvider {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         provider.detailResult = MediaItemDetail(
-            item: JellyfinFixtures.mediaItem("m1"), tagline: nil, genres: [], studios: [], cast: [],
+            item: MediaItemFixtures.mediaItem("m1"), tagline: nil, genres: [], studios: [], cast: [],
             directors: [], writers: [], chapters: [],
             mediaSources: sources ?? [source("uhd", height: 2160), source("hd", height: 1080)],
             trailerURL: nil, contentRating: nil, nextEpisode: nil, collections: [])
@@ -33,7 +33,7 @@ final class ProviderPlaybackVersionTests: XCTestCase {
     /// A session quality keeps the stored settings and the network out of the test.
     private func prepare(_ version: VersionChoice) async throws -> [String] {
         let provider = stub()
-        _ = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        _ = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                version: version, quality: .original)
         return provider.playbackCalls
     }
@@ -52,7 +52,7 @@ final class ProviderPlaybackVersionTests: XCTestCase {
         let provider = cappedStub()
         provider.cappedStreamResult = StreamInfo(source: source("uhd", height: 2160, kind: .hlsTranscode),
                                                  playSessionID: nil, trackInfoAvailable: true)
-        let prepared = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        let prepared = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                           version: .source("uhd"), quality: .step(step8))
         XCTAssertEqual(provider.resolveBitrates, [nil, 8_000_000])
         XCTAssertEqual(prepared.quality.plan, .transcode(step8))
@@ -61,7 +61,7 @@ final class ProviderPlaybackVersionTests: XCTestCase {
 
     func test_cap_picksTheVersionThatFits_andPlaysItOriginal() async throws {
         let provider = cappedStub()
-        let prepared = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        let prepared = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                           quality: .step(QualityStep.step(kbps: 12000)!))
         XCTAssertEqual(provider.playbackCalls.filter { $0.hasPrefix("stream") }, ["stream(m1,nil)", "stream(m1,hd)"])
         XCTAssertEqual(provider.resolveBitrates, [nil, nil])
@@ -71,7 +71,7 @@ final class ProviderPlaybackVersionTests: XCTestCase {
     func test_cap_serverThatWontTranscode_playsTheFile() async throws {
         let provider = cappedStub()
         provider.cappedStreamError = MediaProviderError.transcodeRequired
-        let prepared = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        let prepared = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                           version: .source("uhd"), quality: .step(step8))
         XCTAssertEqual(provider.resolveBitrates, [nil, 8_000_000])
         XCTAssertEqual(prepared.quality.plan, .original)
@@ -109,8 +109,8 @@ final class ProviderPrepareStartTests: XCTestCase {
     }
 
     private func stub(viewOffset: TimeInterval) -> StubMediaProvider {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
-        var item = JellyfinFixtures.mediaItem("m1")
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
+        var item = MediaItemFixtures.mediaItem("m1")
         item = MediaItem(ref: item.ref, kind: item.kind, title: item.title, sortTitle: nil, overview: nil, year: nil,
                          runtime: nil, parentRef: nil, grandparentRef: nil, episodeNumber: nil, seasonNumber: nil,
                          childProgress: nil,
@@ -129,14 +129,14 @@ final class ProviderPrepareStartTests: XCTestCase {
 
     func test_cappedStream_startsAtTheResumePoint() async throws {
         let provider = stub(viewOffset: 600)
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         _ = try await ProviderPlayback.prepare(item: item, provider: provider, quality: .step(step2))
         XCTAssertEqual(provider.resolveStartTimes, [600], "the capped stream starts where the viewer left off")
     }
 
     func test_cappedStream_fromTheBeginningStartsAtZero() async throws {
         let provider = stub(viewOffset: 600)
-        _ = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        _ = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                quality: .step(step2), fromBeginning: true)
         XCTAssertEqual(provider.resolveStartTimes, [0])
     }
@@ -144,7 +144,7 @@ final class ProviderPrepareStartTests: XCTestCase {
     func test_extras_areFetchedByDefault() async throws {
         let provider = stub(viewOffset: 0)
         provider.extrasResult = PlaybackExtras(markers: [PlaybackMarker(kind: .intro, start: 1, end: 2)])
-        let prepared = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        let prepared = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                           quality: .original)
         XCTAssertEqual(prepared.extras.markers.count, 1)
         XCTAssertFalse(prepared.extrasPending)
@@ -153,7 +153,7 @@ final class ProviderPrepareStartTests: XCTestCase {
     func test_extras_notAwaitedWhenTheCallerAppliesThemLater() async throws {
         let provider = stub(viewOffset: 0)
         provider.extrasResult = PlaybackExtras(markers: [PlaybackMarker(kind: .intro, start: 1, end: 2)])
-        let prepared = try await ProviderPlayback.prepare(item: JellyfinFixtures.mediaItem("m1"), provider: provider,
+        let prepared = try await ProviderPlayback.prepare(item: MediaItemFixtures.mediaItem("m1"), provider: provider,
                                                           quality: .original, awaitingExtras: false)
         XCTAssertTrue(prepared.extras.markers.isEmpty)
         XCTAssertTrue(prepared.extrasPending)

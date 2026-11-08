@@ -25,14 +25,12 @@ struct TVSidebarView: View {
     // manager but holds it as a plain `let`, so without an explicit
     // @StateObject here, SwiftUI doesn't see hiddenLibraryKeys updates.
     @StateObject private var librarySettings = LibrarySettingsManager.shared
-    @StateObject private var liveTVDataStore = LiveTVDataStore.shared
     // Other servers' libraries (sidebar sections) and sign-ins (welcome gate).
     @StateObject private var serverStore = ServerDataStore.shared
     @StateObject private var profileManager = PlexUserProfileManager.shared
     @StateObject private var nestedNavState = NestedNavigationState()
     @StateObject private var deepLinkHandler = DeepLinkHandler.shared
     @StateObject private var nowPlayingFeed = SidebarNowPlayingFeed()
-    @AppStorage("combineLiveTVSources") private var combineLiveTVSources = true
     @AppStorage("showDiscoverTab") private var showDiscoverTab = true
     @AppStorage("showWatchlistTab") private var showWatchlistTab = true
     @AppStorage("showFavoritesTab") private var showFavoritesTab = false
@@ -73,9 +71,7 @@ struct TVSidebarView: View {
     }
 
     /// Signing out of everything brings the setup landing back.
-    private var hasAnySource: Bool {
-        isSignedInToAnyServer || liveTVDataStore.sources.contains { !$0.sourceType.followsServer }
-    }
+    private var hasAnySource: Bool { isSignedInToAnyServer }
 
     /// `serverStore` is observed, so a Jellyfin or Emby sign-in re-renders the profile row.
     private var profileName: String {
@@ -87,14 +83,6 @@ struct TVSidebarView: View {
     private var isMusicLibrarySelected: Bool {
         guard case .library(let key) = selectedTab else { return false }
         return dataStore.libraries.first(where: { $0.key == key })?.isMusicLibrary ?? false
-    }
-
-    /// The collapsed pill sits top-left, over the guide's info bar, which puts
-    /// it on top of the focused programme's poster. Hide it here rather than
-    /// pushing the whole guide down to clear it.
-    private var isLiveTVSelected: Bool {
-        if case .liveTV = selectedTab { return true }
-        return false
     }
 
     /// Same collision on Search: the pill sits on the left end of the system
@@ -114,9 +102,6 @@ struct TVSidebarView: View {
     private var shellSections: [ShellSidebarSection] {
         ShellSidebarModel.sections(
             libraries: SidebarLibrary.current(),
-            liveTVSources: liveTVDataStore.sources,
-            combineLiveTV: combineLiveTVSources,
-            // Both need a Plex account; a Jellyfin-only setup has neither (#478).
             showDiscover: showDiscoverTab && authManager.hasCredentials,
             showWatchlist: showWatchlistTab && authManager.hasCredentials,
             showFavorites: showFavoritesTab && hasFavoritesServer,
@@ -135,10 +120,6 @@ struct TVSidebarView: View {
         Set(PlaylistServer.current(PlaylistAvailability.shared.providerIDs)
             .filter { librarySettings.isPlaylistsRowVisible(SidebarArrangement.playlists(server: $0.serverID)) }
             .map(\.providerID))
-    }
-
-    private var opensToLiveTV: Bool {
-        ShellSidebarModel.opensToLiveTV(hasMediaServer: isSignedInToAnyServer, liveTVSources: liveTVDataStore.sources)
     }
 
     private var tabSelection: Binding<SidebarTab> {
@@ -168,7 +149,7 @@ struct TVSidebarView: View {
         RootShellHost(
             selection: tabSelection,
             interactionBlocked: nestedNavState.isNested || nestedNavState.isSettingsSubPage,
-            pillSuppressed: isMusicLibrarySelected || isLiveTVSelected || isSearchSelected,
+            pillSuppressed: isMusicLibrarySelected || isSearchSelected,
             collapseRequest: sidebarCollapseRequest,
             profilePanelOpen: showProfileSwitcher,
             profileRowRequest: sidebarProfileRowRequest,
@@ -201,17 +182,6 @@ struct TVSidebarView: View {
                 switcherProfileId = profileManager.selectedUser?.id
             } else if switcherProfileId == profileManager.selectedUser?.id {
                 sidebarProfileRowRequest += 1
-            }
-        }
-        // Live TV and no media server: open on Live TV, since Home is hidden.
-        .onChange(of: opensToLiveTV, initial: true) { _, liveOnly in
-            guard liveOnly, !isLiveTVSelected, selectedTab != .settings else { return }
-            selectedTab = .liveTV(sourceId: combineLiveTVSources ? nil : liveTVDataStore.sources.first?.id)
-        }
-        // Reset tab selection when live TV source mode changes
-        .onChange(of: combineLiveTVSources) { _, combined in
-            if case .liveTV = selectedTab {
-                selectedTab = .liveTV(sourceId: combined ? nil : liveTVDataStore.sources.first?.id)
             }
         }
         // If the user disables the Discover tab while it's selected, bounce
@@ -322,10 +292,6 @@ struct TVSidebarView: View {
             // Past the profile gate: a deep link held since launch may open now.
             deepLinkHandler.isShellReady = true
             await loadLaunchContent()
-        }
-        .task {
-            // Start background preloading of Live TV data (low priority)
-            liveTVDataStore.startBackgroundPreload()
         }
         .onChange(of: deepLinkHandler.pendingPlayback) { _, metadata in
             guard let metadata else { return }
@@ -725,8 +691,6 @@ struct TVSidebarView: View {
                     UIKitHomeContainer(mode: .library(key: lib.key, title: lib.title))
                         .id(lib.key)
                 }
-            case .liveTV(let sourceId):
-                LiveTVContainerView(sourceIdFilter: sourceId)
             case .settings:
                 settingsTabContent
             }
@@ -745,14 +709,6 @@ struct TVSidebarView: View {
     private func applyDebugLaunchTab() {
         guard !didApplyDebugLaunch,
               let name = ProcessInfo.processInfo.environment["RIVULET_OPEN_LIBRARY"] else { return }
-        #if DEBUG
-        if name == "Live TV" {
-            didApplyDebugLaunch = true
-            selectedTab = .liveTV(sourceId: nil)
-            Task { await LiveMultiviewViewController.debugOpenIfRequested() }
-            return
-        }
-        #endif
         guard let lib = dataStore.visibleSidebarLibraries.first(where: { $0.title == name }) else { return }
         didApplyDebugLaunch = true
         selectedTab = .library(key: lib.key)

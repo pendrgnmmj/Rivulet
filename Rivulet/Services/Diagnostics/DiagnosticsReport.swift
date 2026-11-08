@@ -58,7 +58,6 @@ enum DiagnosticsReport {
             "plex_profile": profile(),
             "home": home(),
             "other_servers": otherServers(),
-            "live_tv": liveTV(),
             "top_shelf": topShelf(),
         ]
     }
@@ -188,26 +187,6 @@ enum DiagnosticsReport {
             "sources": store.sources.map { String($0.providerID.prefix { $0 != ":" }) },
             "libraries": store.libraries.count,
             "home_rows": store.homeRows.count,
-        ]
-    }
-
-    private static func liveTV() -> [String: Any] {
-        let store = LiveTVDataStore.shared
-        return [
-            "sources": store.sources.map { source -> [String: Any] in
-                [
-                    "type": source.sourceType.rawValue,
-                    "channels": source.channelCount,
-                    "connected": source.isConnected,
-                    "synced_min_ago": source.lastSync.map { Int(-$0.timeIntervalSinceNow / 60) } ?? -1,
-                    "channel_profile": source.channelProfile != nil,
-                ]
-            },
-            "channels": store.channels.count,
-            "guide_channels": store.epg.count,
-            "guide_hours_ahead": store.epgLoadedThrough.map { Int($0.timeIntervalSinceNow / 3600) } ?? -1,
-            "guide_issues": store.epgIssues.map(\.reason),
-            "channels_error": store.channelsError ?? "none",
         ]
     }
 

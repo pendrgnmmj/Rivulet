@@ -203,7 +203,7 @@ enum SettingsContent {
 
     /// Rows a restricted (managed) Plex profile does not get: other servers,
     /// sources, sign-out, and the parental controls themselves.
-    static let ownerOnlyRowIDs: Set<String> = ["cat_servers", "liveTVSources", "hdr_Filtering", "cat_contentFilter", "profilePickerOnLaunch", "iCloudSync"]
+    static let ownerOnlyRowIDs: Set<String> = ["cat_servers", "hdr_Filtering", "cat_contentFilter", "profilePickerOnLaunch", "iCloudSync"]
 
     static func rows(for page: SettingsPage) -> [SettingsRowItem] {
         let rows = allRows(for: page)
@@ -216,25 +216,13 @@ enum SettingsContent {
         case .root:        return root
         case .appearance:  return appearance
         case .playback:    return playback
-        case .liveTV:      return liveTV
         case .music:       return music
         case .servers:     return servers
         case .plex:        return plex
         case .plexServerDetail: return plexServerDetail
-        case .jellyfin:    return jellyfin
-        case .emby:        return emby
         case .libraries:   return libraries
         case .homeRows:    return homeRows
         case .cache:       return cache
-        case .iptv:        return iptv
-        case .liveTVSourceDetail: return liveTVSourceDetail
-        case .liveTVFavorites: return liveTVFavorites
-        case .addLiveTVSource:  return addLiveTVSource
-        case .addXtream:        return addXtream
-        case .addDispatcharr:   return addDispatcharr
-        case .addTvheadend:     return addTvheadend
-        case .addThreadfin:     return addThreadfin
-        case .addPlaylistURL:   return addPlaylistURL
         case .about:       return about
         case .appIconPicker:          return appIconPicker
         case .homeHeroPicker:         return homeHeroPicker
@@ -422,7 +410,6 @@ enum SettingsContent {
             // Music BROWSING is unaffected: the sidebar still shows the
             // Music library for every visible Plex music library.
 //            SettingsRowItem(id: "cat_music",      title: "Music",      kind: .navigation(.music)),
-            SettingsRowItem(id: "cat_liveTV",     title: "Live TV",    kind: .navigation(.liveTV)),
             SettingsRowItem(id: "cat_servers",    title: "Servers",    kind: .navigation(.servers)),
             SettingsRowItem(id: "cache",          title: "Cache & Storage", kind: .navigation(.cache)),
             SettingsRowItem(id: "iCloudSync",     title: "iCloud Sync",
@@ -481,23 +468,10 @@ enum SettingsContent {
             SettingsRowItem(id: "detailRating", title: "Rating",
                             kind: .navigationValue(.detailRatingPicker, value: { MediaRating.detailSource.name })),
 
-            .header("Live TV"),
-        ] + liveTVLookRows + [
             .header("Extras"),
             toggle("easterEggs", "Easter Eggs", key: EasterEggs.key, default: true)
         ]
         return rows
-    }
-
-    /// How Live TV looks and where it sits, on both Appearance and the Live TV
-    /// page: someone after the guide or What's On looks under Live TV. Same
-    /// keys in both places, and each page reads them when it opens.
-    private static var liveTVLookRows: [SettingsRowItem] {
-        [
-            SettingsRowItem(id: "defaultLayout", title: "Default Layout",
-                            kind: .cycle(value: { (LiveTVLayout(rawValue: SettingsStore.string("liveTVLayout", default: LiveTVLayout.fallback.rawValue)) ?? .fallback).description },
-                                         next: { cycleLiveTVLayout() }))
-        ]
     }
 
     // MARK: Playback
@@ -711,71 +685,6 @@ enum SettingsContent {
             set: { SettingsStore.setBool(category.enabledDefaultsKey, $0) }))
     }
 
-    // MARK: Live TV
-
-    /// Sidebar placement and Default Layout moved to the
-    /// Appearance page's "Live TV" group; this page keeps sources and playback.
-    private static var liveTV: [SettingsRowItem] {
-        [
-            SettingsRowItem(id: "liveTVSources", title: "Live TV Sources", kind: .navigation(.iptv)),
-            SettingsRowItem(id: "liveTVFavorites", title: "Favorites", kind: .navigation(.liveTVFavorites)),
-        ] + liveTVLookRows + [
-            toggle("combineSources", "Combine Sources", key: "combineLiveTVSources", default: true),
-            toggle("keepPlayingInGuide", "Keep Playing in Guide", key: "liveTVKeepPlayingInGuide", default: true),
-            SettingsRowItem(id: "liveTVSuggestions", title: "Suggestions", kind: .toggle(
-                get: { SettingsStore.bool(LiveTVDataStore.suggestionsKey, default: true) },
-                set: { SettingsStore.setBool(LiveTVDataStore.suggestionsKey, $0) },
-                didChange: { isOn, vc in
-                    guard !isOn else { return }
-                    vc.present(ConfirmationPopupViewController(
-                        title: String(localized: "Erase What For You Learned?"),
-                        message: String(localized: "Suggestions are off. Erase what Rivulet learned from what you watch, or keep it for if you turn them back on."),
-                        confirmTitle: String(localized: "Erase"), cancelTitle: String(localized: "Keep"), destructive: true,
-                        onConfirm: { LiveTVDataStore.shared.forgetViewings() }), animated: true)
-                })),
-            toggle("confirmExitMultiview", "Confirm Exit Multiview", key: "confirmExitMultiview", default: true)
-        ]
-    }
-
-    /// Rivulet's favourite channels in order: hold Select to move one, Select
-    /// asks before removing it (the Pinned Collections pattern). A removed row
-    /// goes at once, so a move never passes a channel that is no longer a
-    /// favourite.
-    private static var liveTVFavorites: [SettingsRowItem] {
-        let store = LiveTVDataStore.shared
-        let byId = Dictionary(store.channels.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let favorites = store.favoriteIds.compactMap { byId[$0] }
-        guard !favorites.isEmpty else {
-            return [SettingsRowItem(id: "noLiveTVFavorites", title: "No Favorites Yet", kind: .info(value: { "" }))]
-        }
-        // The same channel can come from two sources, so name the source
-        // when there is more than one.
-        let sourceNames = Set(favorites.map(\.sourceId)).count > 1
-            ? Dictionary(store.sources.map { ($0.id, $0.displayName) }, uniquingKeysWith: { first, _ in first })
-            : [:]
-        return favorites.map { channel in
-            let title = [channel.channelNumber.map(String.init), channel.name, sourceNames[channel.sourceId].map { "· \($0)" }]
-                .compactMap { $0 }
-                .joined(separator: " ")
-            return SettingsRowItem(id: "fav_\(channel.id)", verbatim: title,
-                                   kind: .action(destructive: false, handler: { vc in
-                presentConfirm(on: vc, title: "Remove \"\(channel.name)\"?",
-                               message: "This removes the channel from your favorites. You can add it again by holding Select on it in What's On or the guide.",
-                               confirmTitle: "Remove", destructive: true) {
-                    if store.isFavorite(channel) { store.toggleFavorite(channel) }
-                    (vc as? SettingsPageViewController)?.reloadRows()
-                }
-            }), onReorder: { up in store.moveFavorite(channel.id, up: up) })
-        }
-    }
-
-    private static func cycleLiveTVLayout() {
-        let all = LiveTVLayout.allCases
-        let cur = LiveTVLayout(rawValue: SettingsStore.string("liveTVLayout", default: LiveTVLayout.fallback.rawValue)) ?? .fallback
-        let i = all.firstIndex(of: cur) ?? 0
-        SettingsStore.setString("liveTVLayout", all[(i + 1) % all.count].rawValue)
-    }
-
     // MARK: Music
 
     /// Withdrawn: loudness, crossfade and quality-badge keys had no reader.
@@ -789,17 +698,7 @@ enum SettingsContent {
 
     private static var servers: [SettingsRowItem] {
         [
-            SettingsRowItem(id: "plexServer", title: "Plex", kind: .navigation(.plex)),
-            SettingsRowItem(
-                id: "jellyfinServer", title: "Jellyfin Server",
-                kind: .navigationAction(.jellyfin,
-                                        value: { JellyfinSession.account?.serverName ?? "" },
-                                        prepare: { addSourceDraft = AddSourceDraft() })),
-            SettingsRowItem(
-                id: "embyServer", title: "Emby Server",
-                kind: .navigationAction(.emby,
-                                        value: { EmbySession.account?.serverName ?? "" },
-                                        prepare: { addSourceDraft = AddSourceDraft() }))
+            SettingsRowItem(id: "plexServer", title: "Plex", kind: .navigation(.plex))
         ]
     }
 
@@ -881,7 +780,6 @@ enum SettingsContent {
         let url = auth.isCurrentServer(server) ? auth.selectedServerURL
             : PlexExtraServers.shared.current.first { $0.machineID == server.machineIdentifier }?.url
         let connection = url.flatMap { url in server.connections?.first { url.contains($0.address) || url == $0.uri } }
-        let liveTV = url.flatMap { url in LiveTVDataStore.shared.sources.first { $0.id == "plex:\(url)" } }
         var rows: [SettingsRowItem] = [
             SettingsRowItem(id: "plexServerEnabled", title: "Use This Server", kind: .selectable(
                 isSelected: { false },
@@ -899,13 +797,6 @@ enum SettingsContent {
             let kind = connection.relay ? String(localized: "Relay") : connection.local ? String(localized: "Local") : String(localized: "connection.remote", defaultValue: "Remote")
             rows.append(info("plexServerConnection", "Connection", connection.protocolType == "https" ? String(localized: "\(kind), Secure") : kind))
         }
-        let ds = LiveTVDataStore.shared
-        if let id = server.machineIdentifier, ds.plexMachineIDs.values.contains(id) {
-            rows.insert(plexLiveTVToggle(id: "plexServerLiveTV", machineID: id), at: 1)
-            if let liveTV { rows.append(info("plexServerChannels", "Channels", "\(liveTV.channelCount)")) }
-        } else {
-            rows.append(info("plexServerLiveTV", "Live TV", String(localized: "No DVR")))
-        }
         if let created = ISO8601DateFormatter().date(from: server.createdAt) {
             rows.append(info("plexServerCreated", "On Plex Since", created.formatted(date: .abbreviated, time: .omitted)))
         }
@@ -919,44 +810,6 @@ enum SettingsContent {
             }
         })))
         return rows
-    }
-
-    /// Shows or hides a Plex server's DVR in Live TV (#406), from either settings page.
-    private static func plexLiveTVToggle(id: String, machineID: String) -> SettingsRowItem {
-        SettingsRowItem(id: id, title: "Show in Live TV", kind: .toggle(
-            get: { !LiveTVDataStore.shared.isPlexLiveTVHidden(machineID: machineID) },
-            set: { LiveTVDataStore.shared.setPlexLiveTVHidden(!$0, machineID: machineID) },
-            didChange: { _, vc in
-                Task {
-                    await LiveTVDataStore.shared.plexSourcesSynced()
-                    (vc as? SettingsPageViewController)?.reloadRows()
-                }
-            }))
-    }
-
-    /// The Jellyfin server's counterpart of `plexLiveTVToggle`.
-    static func jellyfinLiveTVToggle(id: String) -> SettingsRowItem {
-        serverLiveTVToggle(id: id, hiddenKey: JellyfinLiveTVProvider.hiddenKey, setHidden: JellyfinLiveTVProvider.setHidden)
-    }
-
-    /// The Emby server's counterpart.
-    static func embyLiveTVToggle(id: String) -> SettingsRowItem {
-        serverLiveTVToggle(id: id, hiddenKey: EmbyLiveTVProvider.hiddenKey, setHidden: EmbyLiveTVProvider.setHidden)
-    }
-
-    private static func serverLiveTVToggle(
-        id: String, hiddenKey: String, setHidden: @escaping @MainActor (Bool) -> Task<Void, Never>?
-    ) -> SettingsRowItem {
-        var sync: Task<Void, Never>?
-        return SettingsRowItem(id: id, title: "Show in Live TV", kind: .toggle(
-            get: { !UserDefaults.standard.bool(forKey: hiddenKey) },
-            set: { sync = setHidden(!$0) },
-            didChange: { _, vc in
-                Task {
-                    await sync?.value
-                    (vc as? SettingsPageViewController)?.reloadRows()
-                }
-            }))
     }
 
     /// The server whose Use This Server change is still loading.
@@ -1266,8 +1119,6 @@ enum SettingsContent {
     private static func sidebarSettingsRows() -> [ShellSidebarModel.Row] {
         let rows = ShellSidebarModel.arrangeableRows(
             libraries: SidebarLibrary.current(includeHidden: true),
-            liveTVSources: LiveTVDataStore.shared.sources,
-            combineLiveTV: SettingsStore.bool("combineLiveTVSources", default: true),
             showDiscover: PlexAuthManager.shared.hasCredentials, showWatchlist: PlexAuthManager.shared.hasCredentials,
             showFavorites: PersonalHomeRows.offersFavorites,
             playlistServers: PlaylistServer.current(PlaylistAvailability.shared.providerIDs))
@@ -1326,10 +1177,6 @@ enum SettingsContent {
             case SidebarArrangement.favorites:
                 kind = .toggle(get: { SettingsStore.bool("showFavoritesTab", default: false) },
                                set: { SettingsStore.setBool("showFavoritesTab", $0) })
-            case _ where SidebarArrangement.isLiveTV(key):
-                // Live TV leaves the sidebar only with its sources: no toggle, nothing
-                // to open, but focusable so it can be held and moved.
-                kind = .action(destructive: false, handler: { _ in })
             case _ where SidebarArrangement.isAppRow(key):
                 kind = .toggle(get: { LibrarySettingsManager.shared.isPlaylistsRowVisible(key) },
                                set: { LibrarySettingsManager.shared.setPlaylistsRow(key, visible: $0, allKeys: playlistKeys) })
@@ -1414,127 +1261,14 @@ enum SettingsContent {
             destructive: true, width: 1160, onConfirm: everywhere), animated: true)
     }
 
-    // MARK: Live TV Sources
-
-    /// The source whose detail page is currently being shown. Set by a source
-    /// row's `prepare` before pushing `.liveTVSourceDetail`, read by the detail
-    /// builder (SettingsPage can't carry associated data — it's CaseIterable).
-    static var pendingSourceDetail: LiveTVDataStore.LiveTVSourceInfo?
-
-    private static var iptv: [SettingsRowItem] {
-        let ds = LiveTVDataStore.shared
-        let hiddenSources = ds.hiddenPlexSources + [JellyfinLiveTVProvider.hiddenSource, EmbyLiveTVProvider.hiddenSource].compactMap { $0 }
-        let hidden = Set(hiddenSources.map(\.id))
-        var rows: [SettingsRowItem] = (ds.sources + hiddenSources).sorted { $0.displayName < $1.displayName }.map { source in
-            SettingsRowItem(id: "src_\(source.id)", verbatim: source.displayName,
-                            kind: .navigationAction(.liveTVSourceDetail,
-                                                    value: { hidden.contains(source.id) ? String(localized: "Off") : source.isConnected ? String(localized: "\(source.channelCount) ch") : String(localized: "Offline") },
-                                                    prepare: { pendingSourceDetail = source }))
-        }
-        rows.append(SettingsRowItem(id: "addLiveTVSource", title: "Add Live TV Source",
-                                    kind: .navigation(.addLiveTVSource)))
-        return rows
-    }
-
-    /// Set while Refresh Channels runs, so the row says so and ignores a second press.
-    private static var refreshingSourceID: String?
-
-    private static var liveTVSourceDetail: [SettingsRowItem] {
-        guard let pending = pendingSourceDetail else { return [] }
-        // Read live: the snapshot taken when the page opened goes stale on a refresh.
-        let source = LiveTVDataStore.shared.sources.first { $0.id == pending.id } ?? pending
-        let machineID = LiveTVDataStore.shared.plexMachineIDs[source.id]
-        let plexToggle = machineID.map { plexLiveTVToggle(id: "src_showInLiveTV", machineID: $0) }
-        // A hidden server has nothing to show but the way back.
-        if let plexToggle, let machineID, LiveTVDataStore.shared.isPlexLiveTVHidden(machineID: machineID) {
-            return [plexToggle]
-        }
-        let serverToggle: (row: SettingsRowItem, isHidden: Bool)? = switch source.sourceType {
-        case .jellyfin: (jellyfinLiveTVToggle(id: "src_showInLiveTV"), JellyfinLiveTVProvider.hiddenSource != nil)
-        case .emby: (embyLiveTVToggle(id: "src_showInLiveTV"), EmbyLiveTVProvider.hiddenSource != nil)
-        default: nil
-        }
-        if let serverToggle, serverToggle.isHidden { return [serverToggle.row] }
-        var rows: [SettingsRowItem] = plexToggle.map { [$0] } ?? serverToggle.map { [$0.row] } ?? []
-        rows += [
-            SettingsRowItem(id: "src_status", title: "Status",
-                            kind: .info(value: { source.isConnected ? String(localized: "Connected") : String(localized: "Disconnected") })),
-            SettingsRowItem(id: "src_channels", title: "Channels",
-                            kind: .info(value: { "\(source.channelCount)" }))
-        ]
-        // Only shown when a profile is actually set, so the common all-channels
-        // source keeps the page as short as it is today.
-        if let profile = source.channelProfile {
-            rows.append(SettingsRowItem(id: "src_channelProfile", title: "Channel Profile",
-                                        kind: .info(value: { profile })))
-        }
-        if let lastSync = source.lastSync {
-            rows.append(SettingsRowItem(id: "src_lastSync", title: "Last Synced",
-                                        kind: .info(value: { lastSync.formatted(date: .abbreviated, time: .shortened) })))
-        }
-        let refreshing = refreshingSourceID == source.id
-        rows.append(SettingsRowItem(id: "refreshChannels", title: refreshing ? "Refreshing Channels…" : "Refresh Channels",
-                                    kind: .action(destructive: false, handler: { vc in
-            guard refreshingSourceID == nil else { return }
-            refreshingSourceID = source.id
-            (vc as? SettingsPageViewController)?.reloadRows()
-            Task {
-                await LiveTVDataStore.shared.refreshChannels()
-                await LiveTVDataStore.shared.loadEPG()
-                refreshingSourceID = nil
-                (vc as? SettingsPageViewController)?.reloadRows()
-            }
-        })))
-        // A server's own Live TV leaves with its sign-in; removed here it would come straight back.
-        guard !source.sourceType.followsServer else { return rows }
-        rows.append(SettingsRowItem(id: "removeSource", title: "Remove Source",
-                                    kind: .action(destructive: true, handler: { vc in
-            let page = vc as? SettingsPageViewController
-            if CloudSync.shared.isSynced(accountID: LiveTVDataStore.syncID(forSource: source.id)) {
-                func remove(_ scope: SignOutScope) {
-                    Task { @MainActor in
-                        await LiveTVDataStore.shared.removeSource(id: source.id, scope: scope)
-                        page?.onPop?()
-                    }
-                }
-                presentSignOutChoice(
-                    on: vc, title: String(localized: "Remove Source?"),
-                    message: String(localized: "\"\(source.displayName)\" is shared through iCloud. Remove it from this device only, or from every device?"),
-                    thisDevice: { remove(.thisDevice) }, everywhere: { remove(.everywhere) })
-                return
-            }
-            presentConfirm(on: vc, title: "Remove Source?",
-                           message: "This will remove \"\(source.displayName)\" and all its channels from Live TV.",
-                           confirmTitle: "Remove", destructive: true) {
-                Task {
-                    await LiveTVDataStore.shared.removeSource(id: source.id)
-                    (vc as? SettingsPageViewController)?.onPop?()
-                }
-            }
-        })))
-        return rows
-    }
-
     // MARK: Async page preparation
 
     /// Kick off any background loads a page needs the first time it appears
     /// (e.g. fetch Plex Home users). Calls `reload` when fresh data arrives.
     static func prepareAsync(for page: SettingsPage, reload: @escaping () -> Void) {
         switch page {
-        case .addLiveTVSource:
-            // The picker VC is created fresh on every entry, so this is the
-            // flow's entry point: start blank. Draft state and any previous
-            // failure text must not survive leaving the flow.
-            resetAddSourceFlow()
-            reload()
         case .plex where PlexAuthManager.shared.isAuthenticated:
             loadPlexServers(reload: reload)
-        case .liveTVFavorites where LiveTVDataStore.shared.channels.isEmpty:
-            // Settings can open before Live TV has loaded its channels.
-            Task { @MainActor in
-                await LiveTVDataStore.shared.loadChannels()
-                reload()
-            }
         default:
             break
         }

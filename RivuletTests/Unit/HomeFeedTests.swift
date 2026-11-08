@@ -14,7 +14,7 @@ import XCTest
 
 final class HomeFeedTests: XCTestCase {
     private func item(_ id: String, provider: String = "plex:a") -> MediaItem {
-        JellyfinFixtures.mediaItem(id, providerID: provider)
+        MediaItemFixtures.mediaItem(id, providerID: provider)
     }
 
     private func library(_ id: String, _ kind: MediaLibrary.LibraryKind = .movies, provider: String = "plex:a",
@@ -32,10 +32,10 @@ final class HomeFeedTests: XCTestCase {
     // MARK: - libraryRows
 
     func test_libraryRows_keepsTheServersOrderAndDropsEmptyRows() async throws {
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "jellyfin:s"), hub("m.empty", provider: "jellyfin:s", items: []),
-                                  hub("m.continueWatching", provider: "jellyfin:s")]]
-        let rows = try await HomeFeed.libraryRows(jf, library("m", provider: "jellyfin:s"))
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "plex:s"), hub("m.empty", provider: "plex:s", items: []),
+                                  hub("m.continueWatching", provider: "plex:s")]]
+        let rows = try await HomeFeed.libraryRows(jf, library("m", provider: "plex:s"))
         XCTAssertEqual(rows.map(\.id), ["m.recentlyAdded", "m.continueWatching"])
     }
 
@@ -62,18 +62,18 @@ final class HomeFeedTests: XCTestCase {
     }
 
     func test_fetchSecondary_isContinueWatchingAndRecentlyAddedPerLibrary() async throws {
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.libraryList = [library("m", provider: "jellyfin:s"), library("t", .shows, provider: "jellyfin:s"),
-                          library("p", .photos, provider: "jellyfin:s")]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.libraryList = [library("m", provider: "plex:s"), library("t", .shows, provider: "plex:s"),
+                          library("p", .photos, provider: "plex:s")]
         jf.hubsByLibrary = [
-            "m": [hub("m.continueWatching", provider: "jellyfin:s"), hub("m.recentlyAdded", provider: "jellyfin:s")],
-            "t": [hub("t.recentlyAdded", provider: "jellyfin:s", items: [])]
+            "m": [hub("m.continueWatching", provider: "plex:s"), hub("m.recentlyAdded", provider: "plex:s")],
+            "t": [hub("t.recentlyAdded", provider: "plex:s", items: [])]
         ]
-        jf.continueWatchingItems = [item("a", provider: "jellyfin:s")]
+        jf.continueWatchingItems = [item("a", provider: "plex:s")]
 
         let rows = try await HomeFeed.fetch(jf, role: .secondary)
 
-        XCTAssertEqual(rows.rowsByLibrary["m"]?.map(\.id), ["jellyfin:s|m.recentlyAdded"])
+        XCTAssertEqual(rows.rowsByLibrary["m"]?.map(\.id), ["plex:s|m.recentlyAdded"])
         XCTAssertEqual(rows.rowsByLibrary["t"]?.map(\.id), [], "an empty Recently Added is an answer, not a failure")
         XCTAssertNil(rows.rowsByLibrary["p"])
         XCTAssertEqual(rows.libraries.map(\.id), ["m", "t"])
@@ -136,10 +136,10 @@ final class HomeFeedTests: XCTestCase {
             libraries: [library("1"), library("2")], continueWatching: [item("c1")],
             rowsByLibrary: ["1": [hub("a")], "2": [hub("b")]])
         let other = HomeFeed.ServerRows(
-            libraries: [library("m", provider: "jellyfin:s")], continueWatching: [item("c2", provider: "jellyfin:s")],
-            rowsByLibrary: ["m": [hub("r", provider: "jellyfin:s")]])
-        let second = HomeFeed.ServerRows(libraries: [library("e", provider: "emby:e")], continueWatching: nil,
-                                         rowsByLibrary: ["e": [hub("q", provider: "emby:e")]])
+            libraries: [library("m", provider: "plex:s")], continueWatching: [item("c2", provider: "plex:s")],
+            rowsByLibrary: ["m": [hub("r", provider: "plex:s")]])
+        let second = HomeFeed.ServerRows(libraries: [library("e", provider: "plex:e")], continueWatching: nil,
+                                         rowsByLibrary: ["e": [hub("q", provider: "plex:e")]])
 
         let home = HomeFeed.assemble(selected: selected, others: [other, second])
 
@@ -150,8 +150,8 @@ final class HomeFeedTests: XCTestCase {
     }
 
     func test_assemble_withoutASelectedServer() {
-        let other = HomeFeed.ServerRows(libraries: [library("m", provider: "jellyfin:s")], continueWatching: [],
-                                        rowsByLibrary: ["m": [hub("r", provider: "jellyfin:s")]])
+        let other = HomeFeed.ServerRows(libraries: [library("m", provider: "plex:s")], continueWatching: [],
+                                        rowsByLibrary: ["m": [hub("r", provider: "plex:s")]])
         let home = HomeFeed.assemble(selected: nil, others: [other])
         XCTAssertEqual(home.shelves.map(\.id), ["r"])
         XCTAssertEqual(home.continueWatching.count, 1)
@@ -164,9 +164,9 @@ final class HomeFeedTests: XCTestCase {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.libraryList = [library("1")]
         plex.hubsByLibrary = ["1": [hub("a", promoted: true)]]
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.libraryList = [library("m", provider: "jellyfin:s")]
-        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "jellyfin:s")]]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.libraryList = [library("m", provider: "plex:s")]
+        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "plex:s")]]
         let loader = HomeFeedLoader()
         var published: [HomeFeed.Assembled] = []
         loader.onChange = { published.append($0) }
@@ -176,7 +176,7 @@ final class HomeFeedTests: XCTestCase {
 
         XCTAssertFalse(published.isEmpty)
         XCTAssertEqual(published.first?.shelves.first?.id, "plex:a|a", "the first publish already has the selected server")
-        XCTAssertEqual(published.last?.shelves.map(\.id), ["plex:a|a", "jellyfin:s|m.recentlyAdded"])
+        XCTAssertEqual(published.last?.shelves.map(\.id), ["plex:a|a", "plex:s|m.recentlyAdded"])
         XCTAssertFalse(loader.isLoadingSecondary)
     }
 
@@ -193,9 +193,9 @@ final class HomeFeedTests: XCTestCase {
 
     @MainActor
     func test_loader_aSecondaryFailureKeepsItsLastRowsAndDoesNotThrow() async throws {
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.libraryList = [library("m", provider: "jellyfin:s")]
-        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "jellyfin:s")]]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.libraryList = [library("m", provider: "plex:s")]
+        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "plex:s")]]
         let loader = HomeFeedLoader()
         var latest: HomeFeed.Assembled?
         loader.onChange = { latest = $0 }
@@ -210,9 +210,9 @@ final class HomeFeedTests: XCTestCase {
 
     @MainActor
     func test_loader_aServerThatLeavesTakesItsRowsWithIt() async throws {
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.libraryList = [library("m", provider: "jellyfin:s")]
-        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "jellyfin:s")]]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.libraryList = [library("m", provider: "plex:s")]
+        jf.hubsByLibrary = ["m": [hub("m.recentlyAdded", provider: "plex:s")]]
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.libraryList = [library("1")]
         let loader = HomeFeedLoader()
@@ -229,7 +229,7 @@ final class HomeFeedTests: XCTestCase {
 
     @MainActor
     func test_loader_onlySecondaryServersAllFailing_throws() async {
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
         jf.librariesError = MediaProviderError.unauthorized
         let loader = HomeFeedLoader()
         do {

@@ -11,13 +11,13 @@ import XCTest
 
 final class WatchStateRoutingTests: XCTestCase {
     private let plex = StubMediaProvider(id: "plex:a", kind: .plex)
-    private let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+    private let jf = StubMediaProvider(id: "plex:s", kind: .plex)
 
     private func lookup(_ id: String) -> (any MediaProvider)? { [plex, jf].first { $0.id == id } }
 
     func test_markPlayed_reachesEveryCopyOfAMergedCard() async throws {
-        let card = JellyfinFixtures.mediaItem("a", providerID: "plex:a")
-        let copy = JellyfinFixtures.mediaItem("b", providerID: "jellyfin:s")
+        let card = MediaItemFixtures.mediaItem("a", providerID: "plex:a")
+        let copy = MediaItemFixtures.mediaItem("b", providerID: "plex:s")
 
         try await WatchStateRouting.setPlayed(true, item: card, copies: [copy], provider: lookup)
 
@@ -26,8 +26,8 @@ final class WatchStateRoutingTests: XCTestCase {
     }
 
     func test_markUnplayed_touchesOnlyTheCard() async throws {
-        let card = JellyfinFixtures.mediaItem("a", providerID: "plex:a")
-        let copy = JellyfinFixtures.mediaItem("b", providerID: "jellyfin:s")
+        let card = MediaItemFixtures.mediaItem("a", providerID: "plex:a")
+        let copy = MediaItemFixtures.mediaItem("b", providerID: "plex:s")
 
         try await WatchStateRouting.setPlayed(false, item: card, copies: [copy], provider: lookup)
 
@@ -37,15 +37,15 @@ final class WatchStateRoutingTests: XCTestCase {
 
     func test_aCopyThatFailsDoesNotFailTheCard() async throws {
         jf.markPlayedError = MediaProviderError.unreachable
-        let card = JellyfinFixtures.mediaItem("a", providerID: "plex:a")
-        let copy = JellyfinFixtures.mediaItem("b", providerID: "jellyfin:s")
+        let card = MediaItemFixtures.mediaItem("a", providerID: "plex:a")
+        let copy = MediaItemFixtures.mediaItem("b", providerID: "plex:s")
         try await WatchStateRouting.setPlayed(true, item: card, copies: [copy], provider: lookup)
         XCTAssertEqual(plex.markedPlayed.map(\.itemID), ["a"])
     }
 
     func test_theCardsOwnFailureThrows() async {
         plex.markPlayedError = MediaProviderError.unreachable
-        let card = JellyfinFixtures.mediaItem("a", providerID: "plex:a")
+        let card = MediaItemFixtures.mediaItem("a", providerID: "plex:a")
         do {
             try await WatchStateRouting.setPlayed(true, item: card, copies: [], provider: lookup)
             XCTFail("expected a throw")
@@ -53,7 +53,7 @@ final class WatchStateRoutingTests: XCTestCase {
     }
 
     func test_aProviderThatIsGoneThrows() async {
-        let card = JellyfinFixtures.mediaItem("a", providerID: "emby:gone")
+        let card = MediaItemFixtures.mediaItem("a", providerID: "plex:gone")
         do {
             try await WatchStateRouting.setPlayed(true, item: card, copies: [], provider: lookup)
             XCTFail("expected a throw")

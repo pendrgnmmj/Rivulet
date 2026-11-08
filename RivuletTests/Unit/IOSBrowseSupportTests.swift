@@ -30,10 +30,8 @@ final class IOSBrowseSupportTests: XCTestCase {
 
     // MARK: - Gate
 
-    func test_playbackGate_plexJellyfinAndEmbyPlay() {
+    func test_playbackGate_plexPlays() {
         XCTAssertTrue(IOSPlaybackGate.canPlay(MediaItemRef(providerID: "plex:a", itemID: "1")))
-        XCTAssertTrue(IOSPlaybackGate.canPlay(MediaItemRef(providerID: "jellyfin:s", itemID: "1")))
-        XCTAssertTrue(IOSPlaybackGate.canPlay(MediaItemRef(providerID: "emby:e", itemID: "1")))
         XCTAssertFalse(IOSPlaybackGate.canPlay(MediaItemRef(providerID: "iptv:x", itemID: "1")))
     }
 
@@ -114,8 +112,8 @@ final class IOSBrowseSupportTests: XCTestCase {
     func test_showStub_ofASeasonIsItsParent_andMoviesHaveNone() {
         let season = episode("e1", season: 1).seasonStub!
         XCTAssertEqual(season.showStub?.ref.itemID, "show1")
-        XCTAssertNil(JellyfinFixtures.mediaItem("m").showStub)
-        XCTAssertNil(JellyfinFixtures.mediaItem("m").seasonStub)
+        XCTAssertNil(MediaItemFixtures.mediaItem("m").showStub)
+        XCTAssertNil(MediaItemFixtures.mediaItem("m").seasonStub)
     }
 
     func test_logoOwner_andActionKey() {
@@ -124,7 +122,7 @@ final class IOSBrowseSupportTests: XCTestCase {
         let ep = episode("e1", provider: "plex:extra")
         XCTAssertEqual(ep.logoOwner.itemID, "show1")
         XCTAssertEqual(ep.seasonStub?.logoOwner.itemID, "show1")
-        XCTAssertEqual(JellyfinFixtures.mediaItem("m").logoOwner.itemID, "m")
+        XCTAssertEqual(MediaItemFixtures.mediaItem("m").logoOwner.itemID, "m")
         XCTAssertEqual(ep.ref.actionKey, "extra/e1")
         XCTAssertEqual(MediaItemRef(providerID: "plex:sel", itemID: "9").actionKey, "9")
         XCTAssertEqual(MediaItemRef(providerID: "jellyfin:s", itemID: "abc").actionKey, "abc")
@@ -191,7 +189,7 @@ final class IOSBrowseSupportTests: XCTestCase {
     // MARK: - Watchlist
 
     func test_watchlistMembership_movieAndShowOnly_byPlexGuidOrExternalId() {
-        var movie = JellyfinFixtures.mediaItem("m")
+        var movie = MediaItemFixtures.mediaItem("m")
         movie = MediaItem(ref: movie.ref, kind: .movie, title: "M", sortTitle: nil, overview: nil, year: nil, runtime: nil,
                           parentRef: nil, grandparentRef: nil, episodeNumber: nil, seasonNumber: nil, childProgress: nil,
                           userState: movie.userState, artwork: movie.artwork, parentArtwork: nil, grandparentArtwork: nil,

@@ -153,7 +153,7 @@ final class IOSDownloadCenter: ObservableObject {
         return localPlayback(record: record, server: (item.viewOffset, item.lastViewedAt.map { Date(timeIntervalSince1970: TimeInterval($0)) }))
     }
 
-    /// A Jellyfin or Emby `item`'s download, or a Plex item's, as a playback request.
+    /// An Emby `item`'s download, or a Plex item's, as a playback request.
     func localPlayback(for item: MediaItem) -> PlexPlaybackRequest? {
         guard let record = record(for: item.ref) else { return nil }
         let offset = item.userState.viewOffset > 0 ? Int(item.userState.viewOffset * 1000) : nil
@@ -235,7 +235,7 @@ final class IOSDownloadCenter: ObservableObject {
     // MARK: - Actions
 
     /// Starts a download, or retries a failed one. `quality` (else the Download Quality setting) applies to
-    /// Plex only: it converts on the server, while Jellyfin and Emby always send the original file.
+    /// Plex only: it converts on the server, while Emby always sends the original file.
     func download(_ item: MediaItem, quality: StreamingQuality? = nil) {
         guard IOSDownloadGate.canDownload(item.ref),
               let key = DownloadIdentity.providerID(for: item.ref, selectedPlexMachineID: currentServerID) else { return }
@@ -369,7 +369,7 @@ final class IOSDownloadCenter: ObservableObject {
                 // Resume data replays the old token; start over with the current one.
                 set(id, .waitingForServer)
             } else {
-                set(id, DownloadRules.state(afterRejectedStatus: status, converted: record(id)?.queueItemID != nil, kind: record(id)?.kind ?? .plex))
+                set(id, DownloadRules.state(afterRejectedStatus: status, converted: record(id)?.queueItemID != nil))
             }
             ensureTicking()
 
@@ -444,7 +444,7 @@ final class IOSDownloadCenter: ObservableObject {
             }
         } catch PlexAPIError.httpError(let status, _) {
             if status == 404 { forgetConversion(id) }
-            if let reason = DownloadRules.failureReason(httpStatus: status, kind: .plex) { fail(id, reason) } else { set(id, .waitingForServer) }
+            if let reason = DownloadRules.failureReason(httpStatus: status) { fail(id, reason) } else { set(id, .waitingForServer) }
         } catch PlexAPIError.parsingError {
             fail(id, String(localized: "The server sent a response Rivulet couldn't read"))
         } catch {
@@ -557,8 +557,8 @@ final class IOSDownloadCenter: ObservableObject {
         }
     }
 
-    /// The status, size and ETag the file would come with. Plex answers HEAD; Jellyfin and Emby do not,
-    /// so they get a one-byte range and the body is dropped as soon as the headers are in.
+    /// The status, size and ETag the file would come with. Plex answers HEAD; Emby does not,
+    /// so it gets a one-byte range and the body is dropped as soon as the headers are in.
     private func probeFile(_ request: URLRequest, ranged: Bool) async throws -> (status: Int, length: Int64?, etag: String?) {
         var head = request
         head.timeoutInterval = 20
@@ -618,7 +618,7 @@ final class IOSDownloadCenter: ObservableObject {
         }
     }
 
-    // MARK: - Jellyfin and Emby
+    // MARK: - Emby
 
     /// One step for a record on a server beside Plex: plan it, then fetch its original file.
     private func advanceProvider(_ id: String) async {
@@ -636,15 +636,15 @@ final class IOSDownloadCenter: ObservableObject {
                 for: MediaItemRef(providerID: provider.id, itemID: planned.itemID), sourceID: planned.sourceID)
             try await startTransfer(id, request: source.request, fallbackSize: planned.expectedBytes, ranged: true)
         } catch PlexAPIError.httpError(let status, _) {
-            if let reason = DownloadRules.failureReason(httpStatus: status, kind: record.kind ?? .jellyfin) {
+            if let reason = DownloadRules.failureReason(httpStatus: status) {
                 fail(id, reason)
             } else {
                 set(id, .waitingForServer)
             }
         } catch MediaProviderError.unauthorized {
-            fail(id, DownloadRules.failureReason(httpStatus: 401, kind: record.kind ?? .jellyfin) ?? "")
+            fail(id, DownloadRules.failureReason(httpStatus: 401) ?? "")
         } catch MediaProviderError.notFound {
-            fail(id, DownloadRules.failureReason(httpStatus: 404, kind: record.kind ?? .jellyfin) ?? "")
+            fail(id, DownloadRules.failureReason(httpStatus: 404) ?? "")
         } catch MediaProviderError.notPlayable {
             fail(id, DownloadRules.noFileReason)
         } catch {

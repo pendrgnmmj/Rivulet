@@ -5,7 +5,7 @@
 //  MediaRatingTests.swift
 //  RivuletTests
 //
-//  Field shapes measured on PMS 1.43.4 and Jellyfin 12.1.
+//  Field shapes measured on PMS 1.43.4.
 //
 
 import XCTest
@@ -26,14 +26,6 @@ final class MediaRatingTests: XCTestCase {
         meta.audienceRatingImage = audienceImage
         meta.Rating = entries
         return PlexMediaMapper.ratings(meta)
-    }
-
-    private func jellyfin(_ fields: String) -> [MediaRating] {
-        let json = #"{"Id":"m1","Name":"M","Type":"Movie"\#(fields)}"#
-        return JellyfinMediaMapper.detail(
-            JellyfinFixtures.decode(json), nextEpisode: nil,
-            providerID: "jellyfin:srv", baseURL: JellyfinFixtures.baseURL, token: "t"
-        ).ratings
     }
 
     private func texts(_ r: [MediaRating]) -> [String] {
@@ -70,17 +62,6 @@ final class MediaRatingTests: XCTestCase {
 
     func test_zeroScore_isDropped() {
         XCTAssertTrue(plex(rating: 0, audience: 0, audienceImage: "themoviedb://image.rating").isEmpty)
-    }
-
-    // MARK: - Jellyfin
-
-    func test_jellyfin_criticAndCommunity() {
-        let r = jellyfin(#","CommunityRating":7.5,"CriticRating":89"#)
-        XCTAssertEqual(texts(r), ["Rotten Tomatoes 89%", "Rating 7.5/10"])
-    }
-
-    func test_jellyfin_nothing_isEmpty() {
-        XCTAssertTrue(jellyfin("").isEmpty)
     }
 
     // MARK: - Merge and Worker

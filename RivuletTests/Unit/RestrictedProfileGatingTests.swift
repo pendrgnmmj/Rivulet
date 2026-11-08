@@ -52,9 +52,8 @@ final class RestrictedProfileGatingTests: XCTestCase {
     func test_restrictedProfile_losesOwnerOnlyRows_andKeepsTheRest() {
         manager.selectedUser = PlexHomeUser(id: 2, uuid: "kid", title: "Kid", restricted: true)
         XCTAssertTrue(manager.isRestrictedProfile)
-        let root = rowIDs(.root), liveTV = rowIDs(.liveTV), playback = rowIDs(.playback), appearance = rowIDs(.appearance)
+        let root = rowIDs(.root), playback = rowIDs(.playback), appearance = rowIDs(.appearance)
         XCTAssertFalse(root.contains("cat_servers"))
-        XCTAssertFalse(liveTV.contains("liveTVSources"))
         XCTAssertFalse(playback.contains("cat_contentFilter"))
         XCTAssertFalse(appearance.contains("profilePickerOnLaunch"))
         XCTAssertTrue(root.contains("cat_playback"))

@@ -418,7 +418,7 @@ class LibrarySettingsManager: ObservableObject {
     /// Settings > Sidebar > Reset: the default order with every row shown.
     func resetSidebar() {
         hiddenLibraryKeys = []
-        libraryOrder = SidebarArrangement.seed(libraryOrder: [], discoverAbove: true, liveTVAbove: false)
+        libraryOrder = SidebarArrangement.seed(libraryOrder: [], discoverAbove: true)
     }
 
     /// The first load on a build with an arrangeable sidebar keeps today's layout.
@@ -426,8 +426,7 @@ class LibrarySettingsManager: ObservableObject {
         guard !SidebarArrangement.isSeeded(libraryOrder) else { return }
         let flag = { (key: String, fallback: Bool) in self.userDefaults.object(forKey: key) as? Bool ?? fallback }
         libraryOrder = SidebarArrangement.seed(libraryOrder: libraryOrder,
-                                               discoverAbove: flag("discoverAboveLibraries", true),
-                                               liveTVAbove: flag("liveTVAboveLibraries", false))
+                                               discoverAbove: flag("discoverAboveLibraries", true))
         if !flag("showPlaylistsTab", true) { hiddenLibraryKeys.insert(SidebarArrangement.allPlaylistsHidden) }
     }
 

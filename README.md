@@ -6,7 +6,7 @@
 
 **Built for simplicity.**
 
-A native Apple TV app for Plex, Jellyfin, Emby, and Live TV.
+A native Apple TV app for Plex.
 
 <a href="https://apps.apple.com/us/app/rivulet-for-plex/id6756892857">
   <img src="https://img.shields.io/badge/Download_on_the-App_Store-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download on the App Store">
@@ -49,27 +49,8 @@ _A camel is a horse designed by a committee. I don’t want Rivulet to be a came
 ## Why this exists
 I began this project in Decemeber 2025. At the time there was quite a lack of Plex player alternatives, especially for tvOS (not much so anymore). My goals for the app were/are:
 - **Simplicity**: what is the best design to get me to the media I want to watch.
-- **Live TV**: Plex's live TV is, to put it nicely, sub-par. I've spent too long trying to get it to work well for me (kudos if you don't have this problem). I don't want live TV in a separate app, so this solves my problems.
 - **HomePod Integration**: the Plex app has never worked well when setting HomePod as the default audio output on my Apple TV. It hurts to have a HomePod sitting there collecting dust while my sub-par TV speakers play sound. This app helps the hurt.
 - **Apple-Esque**: I enjoy Apple’s designs and apps, and enjoy the challenge of creating an app that feels native to the Apple ecosystem.
-<br></br>
-
-## Live TV
-
-Rivulet works with several kinds of Live TV source. You don't need a Plex, Jellyfin, or Emby server. Add just a Live TV source and the app opens straight to Live TV.
-
-- **What's On**: what's airing now, what starts soon, and a For You row that learns what you watch.
-- **Guide**: standard guide layout if you want.
-- **Multiview**: watch up to four channels at once.
-- **Scores**: live scores if thats your thing. NFL, college football, NBA, MLB, and NHL.
-- **Sources**: Dispatcharr, Plex Live TV (HDHomeRun and DVB tuners), Xtream Codes, and any M3U/XMLTV playlist.
-
-<div align="center">
-
-<img src="Screenshots/tvOS/03-whats-on.jpg" alt="What's On" width="49%">
-<img src="Screenshots/tvOS/04-multiview.jpg" alt="Multiview" width="49%">
-
-</div>
 <br></br>
 
 ## Insights
@@ -180,16 +161,13 @@ Third-party components retain their original licenses. FFmpeg is included under 
 - [libdovi](https://github.com/quietvoid/dovi_tool): Dolby Vision RPU handling
 - [libass](https://github.com/libass/libass): ASS/SSA subtitle rendering
 - [Plex](https://plex.tv/): media server platform
-- [Jellyfin](https://jellyfin.org/): open source media server
-- [Emby](https://emby.media/): media server platform
-- [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr): IPTV management
 - [TMDB](https://www.themoviedb.org/): artwork and metadata for Discover
 
 ---
 
 <div align="center">
 
-Rivulet is not affiliated with or endorsed by Plex, Inc., the Jellyfin project, or Emby LLC.
+Rivulet is not affiliated with or endorsed by Plex, Inc.
 
 Media used in the README is AI generated for copyright reasons.
 

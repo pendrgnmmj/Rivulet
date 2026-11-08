@@ -64,7 +64,6 @@ final class PlexExtraServers {
     func syncedPreferencesChanged(_ keys: Set<String>) {
         guard keys.contains(disabledKey) else { return }
         Self.onChanged?()
-        LiveTVDataStore.shared.plexContentTokenChanged()
         lastRefresh = nil
         refreshForAccount()
     }
@@ -74,7 +73,6 @@ final class PlexExtraServers {
         if enabled { disabled.remove(machineID) } else { disabled.insert(machineID) }
         UserDefaults.standard.set(disabled.sorted(), forKey: disabledKey)
         Self.onChanged?()
-        LiveTVDataStore.shared.plexContentTokenChanged()
         // A server that was the selected one is not in the stored list yet.
         if enabled {
             lastRefresh = nil
@@ -155,6 +153,5 @@ final class PlexExtraServers {
         }
         guard changed else { return }
         Self.onChanged?()
-        LiveTVDataStore.shared.plexContentTokenChanged()
     }
 }

@@ -33,13 +33,6 @@ struct MacPlaybackCommands: Commands {
             .keyboardShortcut("s", modifiers: [])
             .disabled(!active)
 
-            Button("Channel Up") { playback.stepChannel(1) }
-                .keyboardShortcut(.upArrow, modifiers: .command)
-                .disabled(!active || !(session is MacLivePlayback))
-            Button("Channel Down") { playback.stepChannel(-1) }
-                .keyboardShortcut(.downArrow, modifiers: .command)
-                .disabled(!active || !(session is MacLivePlayback))
-
             Divider()
 
             Button("Volume Up") { playback.adjustVolume(by: 0.1) }

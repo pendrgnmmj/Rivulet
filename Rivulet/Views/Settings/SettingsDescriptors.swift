@@ -26,8 +26,6 @@ struct SettingDescriptor {
 // MARK: - Descriptor Store
 
 enum SettingsDescriptorStore {
-    private static let embyName = MediaProviderKind.emby.displayName
-
     static func descriptor(for id: String) -> SettingDescriptor? {
         if let exact = descriptors[id] { return exact }
         // Rows built per item at runtime carry the item's identity in their id,
@@ -36,7 +34,6 @@ enum SettingsDescriptorStore {
         if id.hasPrefix("homeRow_") { return descriptors["homeRowItem"] }
         if id.hasPrefix("pinnedCollection_") { return descriptors["pinnedCollection"] }
         if id.hasPrefix("homePlaylist_") { return descriptors["homePlaylist"] }
-        if id.hasPrefix("fav_") { return descriptors["liveTVFavoriteRow"] }
         if id.hasPrefix("cfw_"), id != "cfw_add" { return descriptors["customWordRow"] }
         if id.hasPrefix("sq_") { return descriptors["streamingQualityOption"] }
         if id.hasPrefix("al_") { return descriptors["audioLanguage"] }
@@ -48,7 +45,6 @@ enum SettingsDescriptorStore {
         if id.hasPrefix("alim_") { return descriptors["autoplayLimit"] }
         if id.hasPrefix("plexServer_") { return descriptors["plexServerOption"] }
         if id.hasPrefix("lib_") { return descriptors["libraryRow"] }
-        if id.hasPrefix("sb_#livetv") { return descriptors["sidebarLiveTVRow"] }
         if id.hasPrefix("sb_") { return descriptors["sidebarAppRow"] }
         return nil
     }
@@ -63,13 +59,9 @@ enum SettingsDescriptorStore {
             icon: "play.fill",
             description: "Configure audio, subtitles, skip behavior, and autoplay."
         ),
-        "cat_liveTV": SettingDescriptor(
-            icon: "tv.fill",
-            description: "Manage Live TV sources, layout preferences, multiview settings, and channel display options."
-        ),
         "cat_servers": SettingDescriptor(
             icon: "server.rack",
-            description: "Manage your Plex, Jellyfin and Emby server connections and user profiles."
+            description: "Manage your Plex server connections and user profiles."
         ),
         "cat_about": SettingDescriptor(
             icon: "info.circle.fill",
@@ -88,10 +80,6 @@ enum SettingsDescriptorStore {
         "sidebarAppRow": SettingDescriptor(
             icon: "sidebar.squares.left",
             description: "Click to show or hide this row in the sidebar. Press and hold to move it up or down."
-        ),
-        "sidebarLiveTVRow": SettingDescriptor(
-            icon: "tv",
-            description: "Press and hold to move Live TV up or down. It leaves the sidebar when its sources are removed."
         ),
         "libraryRow": SettingDescriptor(
             icon: "sidebar.squares.left",
@@ -256,40 +244,6 @@ enum SettingsDescriptorStore {
             description: "When off, closing credits play uninterrupted and the player returns to Home at the end of the episode."
         ),
 
-        // MARK: Live TV
-        "combineSources": SettingDescriptor(
-            icon: "square.stack.3d.down.right",
-            description: "Shows all Live TV sources together under one sidebar entry, or gives each source its own."
-        ),
-        "defaultLayout": SettingDescriptor(
-            icon: "tv",
-            description: "Choose your default Live TV view: the TV guide, or What's On, with rows of what is on now and multiview like the Apple TV app."
-        ),
-        "liveTVFavorites": SettingDescriptor(
-            icon: "star.fill",
-            description: "Set the order of your favorite channels, from every source. To add one, hold Select on a channel in What's On or the guide."
-        ),
-        "liveTVFavoriteRow": SettingDescriptor(
-            icon: "star.fill",
-            description: "Hold Select to move this channel, then press Select to drop it. Select to remove it. Favorites you set in Plex come after these, in Plex's order."
-        ),
-        "noLiveTVFavorites": SettingDescriptor(
-            icon: "star",
-            description: "Hold Select on a channel in What's On or the guide and choose Add to Favorites. Favorites from every source share one list."
-        ),
-        "liveTVSuggestions": SettingDescriptor(
-            icon: "sparkles",
-            description: "A For You row in What's On, suggesting what is on now like what you watch. It learns on this Apple TV only. Off hides the row."
-        ),
-        "keepPlayingInGuide": SettingDescriptor(
-            icon: "pip",
-            description: "When you go back from a live channel, it keeps playing with its sound in the corner of the Guide or What's On. Select it again to return to full screen."
-        ),
-        "confirmExitMultiview": SettingDescriptor(
-            icon: "rectangle.split.2x2",
-            description: "Shows a confirmation dialog before closing multiview mode to prevent accidentally ending multiple streams."
-        ),
-
         // MARK: Storage
         "cache": SettingDescriptor(
             icon: "internaldrive",
@@ -321,22 +275,6 @@ enum SettingsDescriptorStore {
             icon: "power",
             description: "Turn off to remove this server from Rivulet: its libraries, Home rows, Continue Watching and Live TV. Your account stays signed in."
         ),
-        "plexServerLiveTV": SettingDescriptor(
-            icon: "tv.and.mediabox",
-            description: "Off hides this server's channels from Live TV, for when the same channels come from another source. Its libraries stay."
-        ),
-        "jellyfinLiveTV": SettingDescriptor(
-            icon: "tv.and.mediabox",
-            description: "Off hides this server's channels from Live TV, for when the same channels come from another source. Its libraries stay."
-        ),
-        "embyLiveTV": SettingDescriptor(
-            icon: "tv.and.mediabox",
-            description: "Off hides this server's channels from Live TV, for when the same channels come from another source. Its libraries stay."
-        ),
-        "src_showInLiveTV": SettingDescriptor(
-            icon: "tv.and.mediabox",
-            description: "Off hides this server's channels from Live TV, for when the same channels come from another source. Its libraries stay."
-        ),
         "plexServerRefresh": SettingDescriptor(
             icon: "arrow.clockwise",
             description: "Ask Plex for this server's latest status."
@@ -353,74 +291,6 @@ enum SettingsDescriptorStore {
             icon: "rectangle.portrait.and.arrow.right",
             description: "Sign out of your Plex account. Every Plex server on it leaves Rivulet until you sign in again."
         ),
-        "jellyfinServer": SettingDescriptor(
-            icon: "server.rack",
-            description: "Sign in to your Jellyfin server."
-        ),
-        "jellyfinURL": SettingDescriptor(
-            icon: "globe",
-            description: "Your Jellyfin server's address, including the port, for example http://192.168.1.100:8096. You can paste the address from your browser."
-        ),
-        "jellyfinUsername": SettingDescriptor(
-            icon: "person",
-            description: "Your Jellyfin username."
-        ),
-        "jellyfinPassword": SettingDescriptor(
-            icon: "key",
-            description: "Used once, to sign in. Rivulet keeps the access token Jellyfin returns, not the password."
-        ),
-        "jellyfinSignIn": SettingDescriptor(
-            icon: "link",
-            description: "Check the server and sign in."
-        ),
-        "jellyfinQuickConnect": SettingDescriptor(
-            icon: "qrcode",
-            description: "Sign in without typing a password: Rivulet shows a code to approve from a device already signed in to Jellyfin. Quick Connect has to be on in the server's dashboard."
-        ),
-        "jellyfinRefresh": SettingDescriptor(
-            icon: "arrow.clockwise",
-            description: "Reload this server's libraries and Home rows now."
-        ),
-        "jellyfinSignOut": SettingDescriptor(
-            icon: "rectangle.portrait.and.arrow.right",
-            description: "Sign out of this Jellyfin server and remove its saved credentials."
-        ),
-        "embyServer": SettingDescriptor(
-            icon: "server.rack",
-            description: "Sign in to your \(embyName) server."
-        ),
-        "embyServerInfo": SettingDescriptor(
-            icon: "server.rack",
-            description: "The \(embyName) server you are signed in to."
-        ),
-        "embyUserInfo": SettingDescriptor(
-            icon: "person",
-            description: "The \(embyName) user you are signed in as."
-        ),
-        "embyURL": SettingDescriptor(
-            icon: "globe",
-            description: "Your \(embyName) server's address, including the port, for example http://192.168.1.100:8096. You can paste the address from your browser."
-        ),
-        "embyUsername": SettingDescriptor(
-            icon: "person",
-            description: "Your \(embyName) username."
-        ),
-        "embyPassword": SettingDescriptor(
-            icon: "key",
-            description: "Used once, to sign in. Rivulet keeps the access token \(embyName) returns, not the password. Leave it empty if your user has none."
-        ),
-        "embySignIn": SettingDescriptor(
-            icon: "link",
-            description: "Check the server and sign in."
-        ),
-        "embyRefresh": SettingDescriptor(
-            icon: "arrow.clockwise",
-            description: "Reload this server's libraries and Home rows now."
-        ),
-        "embySignOut": SettingDescriptor(
-            icon: "rectangle.portrait.and.arrow.right",
-            description: "Sign out of this \(embyName) server and remove its saved credentials."
-        ),
         "connectPlex": SettingDescriptor(
             icon: "link",
             description: "Connect to your Plex server to browse and stream your media library."
@@ -428,114 +298,6 @@ enum SettingsDescriptorStore {
         "profilePickerOnLaunch": SettingDescriptor(
             icon: "person.2.circle",
             description: "Shows the profile picker each time Rivulet opens, and when you come back to it after more than 30 seconds on the Home screen, in another app or on the screensaver, allowing you to choose which profile to use."
-        ),
-        "liveTVSources": SettingDescriptor(
-            icon: "tv.and.mediabox",
-            description: "Add your own Live TV sources: your Plex server's Live TV or an IPTV playlist from your provider. Rivulet provides no channels of its own."
-        ),
-        "plexLiveTVSource": SettingDescriptor(
-            icon: "play.rectangle.fill",
-            description: "Plex Live TV source using your server's DVR tuners. Tap to view details or remove."
-        ),
-        "dispatcharrSource": SettingDescriptor(
-            icon: "antenna.radiowaves.left.and.right",
-            description: "Dispatcharr source providing managed IPTV channels. Tap to view details or remove."
-        ),
-        "m3uSource": SettingDescriptor(
-            icon: "list.bullet.rectangle",
-            description: "M3U playlist source for IPTV channels. Tap to view details or remove."
-        ),
-        "addLiveTVSource": SettingDescriptor(
-            icon: "plus.circle.fill",
-            description: "Connect a Live TV source you already have access to: your Plex server's tuners, a login or playlist from an IPTV provider, or a server you run yourself."
-        ),
-        "refreshChannels": SettingDescriptor(
-            icon: "arrow.clockwise",
-            description: "Reload the channel list and EPG data from this source."
-        ),
-        "removeSource": SettingDescriptor(
-            icon: "trash",
-            description: "Remove this Live TV source and all its channels."
-        ),
-        "addXtream": SettingDescriptor(
-            icon: "person.badge.key",
-            description: "Sign in with the server, username and password from your IPTV provider (an Xtream Codes login). Rivulet loads the channels and guide."
-        ),
-        "xtreamServerField": SettingDescriptor(
-            icon: "globe",
-            description: "Your provider's server address with its port, like http://provider.example:8080. A single link with your login in it works too."
-        ),
-        "xtreamUsernameField": SettingDescriptor(
-            icon: "person",
-            description: "The username your provider gave you."
-        ),
-        "xtreamPasswordField": SettingDescriptor(
-            icon: "key",
-            description: "The password your provider gave you. Rivulet keeps it in the Keychain."
-        ),
-        "addDispatcharr": SettingDescriptor(
-            icon: "antenna.radiowaves.left.and.right",
-            description: "Your Dispatcharr server. Rivulet loads its channels and guide, and records through it if you sign in."
-        ),
-        "addTvheadend": SettingDescriptor(
-            icon: "tv",
-            description: "Your Tvheadend server. Rivulet loads its channels and guide, and records through it if you sign in."
-        ),
-        "addThreadfin": SettingDescriptor(
-            icon: "server.rack",
-            description: "Your Threadfin server. Rivulet loads its playlist and guide from the address."
-        ),
-        "tvhServerField": SettingDescriptor(
-            icon: "globe",
-            description: "Your Tvheadend server's address on your network, with its port. Tvheadend uses 9981 unless you changed it."
-        ),
-        "tvhUsernameField": SettingDescriptor(
-            icon: "person",
-            description: "A Tvheadend user. Needed if your server asks for a login, and to record. Leave it empty to watch without one."
-        ),
-        "tvhPasswordField": SettingDescriptor(
-            icon: "key",
-            description: "That user's password. Rivulet keeps it in the Keychain."
-        ),
-        "threadfinServerField": SettingDescriptor(
-            icon: "globe",
-            description: "Your Threadfin server's address on your network, with its port. Threadfin uses 34400 unless you changed it."
-        ),
-        "addPlaylistURL": SettingDescriptor(
-            icon: "list.bullet.rectangle",
-            description: "An M3U playlist link from an IPTV provider you subscribe to, with an optional guide link. Rivulet supplies no channels of its own."
-        ),
-        "serverURL": SettingDescriptor(
-            icon: "globe",
-            description: "Your Dispatcharr server's address on your network, with its port. Dispatcharr uses 9191 unless you changed it."
-        ),
-        "displayNameField": SettingDescriptor(
-            icon: "textformat",
-            description: "What this source is called in Live TV. Optional."
-        ),
-        "usernameField": SettingDescriptor(
-            icon: "person",
-            description: "Dispatcharr only. Sign in with your Dispatcharr user so Rivulet can schedule recordings and series from the guide. Leave it empty to just watch."
-        ),
-        "passwordField": SettingDescriptor(
-            icon: "key",
-            description: "Used once, to fetch your Dispatcharr API key. Rivulet keeps the key, not the password."
-        ),
-        "channelProfileField": SettingDescriptor(
-            icon: "line.3.horizontal.decrease.circle",
-            description: "Dispatcharr only. The name of a channel profile, to load just that set of channels. Leave it empty and you get every channel on the server."
-        ),
-        "m3uURLField": SettingDescriptor(
-            icon: "list.bullet.rectangle",
-            description: "The playlist link your IPTV provider gave you, for example http://provider.example/playlist.m3u. It usually ends in .m3u or .m3u8."
-        ),
-        "epgURLField": SettingDescriptor(
-            icon: "calendar",
-            description: "Optional. An XMLTV guide link from the same provider, so channels show what is on. Leave it empty if the playlist names its own guide."
-        ),
-        "addSourceConfirm": SettingDescriptor(
-            icon: "plus.circle.fill",
-            description: "Checks the connection and adds the source if it works. If it does not, Rivulet tells you why."
         ),
 
         // MARK: About
@@ -630,7 +392,6 @@ enum SettingsDescriptorStore {
         case "hdr_Home": return "house.fill"
         case "hdr_Library": return "books.vertical.fill"
         case "hdr_Details": return "star.leadinghalf.filled"
-        case "hdr_Live TV": return "tv.fill"
         case "hdr_Extras": return "sparkles"
         default: return nil
         }
@@ -646,14 +407,10 @@ enum SettingsDescriptorStore {
         case .appearance: return ("paintbrush.fill", .systemPurple)
         case .playback: return ("play.fill", .systemBlue)
         case .music: return ("music.note", .systemPink)
-        case .liveTV: return ("tv.fill", .systemGreen)
         case .servers: return ("server.rack", .systemOrange)
         case .about: return ("info.circle.fill", .systemGray)
         case .plex: return ("server.rack", .systemOrange)
         case .plexServerDetail: return ("server.rack", .systemOrange)
-        case .jellyfin: return ("server.rack", .systemPurple)
-        case .emby: return ("server.rack", .systemGreen)
-        case .iptv: return ("tv.and.mediabox", .systemBlue)
         case .libraries: return ("sidebar.squares.left", .systemPurple)
         case .homeRows: return ("rectangle.grid.1x2", .systemTeal)
         case .cache: return ("internaldrive", .systemGray)
@@ -672,14 +429,6 @@ enum SettingsDescriptorStore {
         case .contentFilter: return ("hand.raised.fill", .systemOrange)
         case .contentFilterStrength: return ("dial.medium.fill", .systemOrange)
         case .contentFilterWords: return ("text.badge.plus", .systemOrange)
-        case .liveTVSourceDetail: return ("tv.and.mediabox", .systemBlue)
-        case .liveTVFavorites: return ("star.fill", .systemYellow)
-        case .addLiveTVSource: return ("plus.circle.fill", .systemBlue)
-        case .addXtream: return ("person.badge.key.fill", .systemIndigo)
-        case .addDispatcharr: return ("antenna.radiowaves.left.and.right", .systemBlue)
-        case .addTvheadend: return ("tv", .systemBlue)
-        case .addThreadfin: return ("server.rack", .systemBlue)
-        case .addPlaylistURL: return ("list.bullet.rectangle", .systemGreen)
         }
     }
 }

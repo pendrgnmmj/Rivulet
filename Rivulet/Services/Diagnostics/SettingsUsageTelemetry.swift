@@ -10,7 +10,7 @@ import Sentry
 
 @MainActor
 enum SettingsUsageTelemetry {
-    static let pages: [SettingsPage] = [.appearance, .playback, .contentFilter, .liveTV]
+    static let pages: [SettingsPage] = [.appearance, .playback, .contentFilter]
     private static let lastSentKey = "settingsSnapshotLastSent"
 
     static func sendIfDue(now: Date = Date()) {

@@ -11,35 +11,10 @@ final class FolderRoutingTests: XCTestCase {
         return PlexMediaMapper.library(section, providerID: "plex")
     }
 
-    private func jellyfin(_ collectionType: String?, _ content: HomeVideosContent = .videos) -> MediaLibrary? {
-        let type = collectionType.map { #""CollectionType":"\#($0)","# } ?? ""
-        let view: JFItem = JellyfinFixtures.decode(#"{"Id":"v","Name":"V",\#(type)"Type":"CollectionFolder"}"#)
-        return JellyfinMediaMapper.library(view, providerID: "jf", homeVideos: content)
-    }
-
     func test_plexMovieSection_noneAgent_browsesByFolder() {
         XCTAssertTrue(plex("movie", agent: "tv.plex.agents.none").browsesByFolder)
         XCTAssertTrue(plex("show", agent: "com.plexapp.agents.none").browsesByFolder)
         XCTAssertFalse(plex("movie", agent: "tv.plex.agents.movie").browsesByFolder)
         XCTAssertFalse(plex("photo", agent: "com.plexapp.agents.none").browsesByFolder)
-    }
-
-    func test_jellyfinMixed_browsesByFolder() {
-        let library = jellyfin(nil)
-        XCTAssertEqual(library?.kind, .mixed)
-        XCTAssertEqual(library?.browsesByFolder, true)
-        XCTAssertEqual(jellyfin("movies")?.browsesByFolder, false)
-    }
-
-    func test_jellyfinHomeVideos_withVideos_browsesByFolder() {
-        let library = jellyfin("homevideos", .videos)
-        XCTAssertEqual(library?.kind, .mixed)
-        XCTAssertEqual(library?.browsesByFolder, true)
-    }
-
-    func test_jellyfinHomeVideos_photosOnly_isPhotos() {
-        let library = jellyfin("homevideos", .photosOnly)
-        XCTAssertEqual(library?.kind, .photos)
-        XCTAssertEqual(library?.browsesByFolder, false)
     }
 }

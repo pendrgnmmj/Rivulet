@@ -161,7 +161,6 @@ final class AetherPlayer: ObservableObject {
 
     private enum LoadRequest {
         case vod(url: URL, headers: [String: String], subtitles: [SidecarSubtitle])
-        case live(url: URL, headers: [String: String], forceEngineDemux: Bool)
     }
 
     /// AVPlayerLayer does not paint remote HLS WebVTT captions when the host
@@ -344,7 +343,6 @@ final class AetherPlayer: ObservableObject {
                 self.refreshPictureInPictureSource()
                 guard let avPlayer else {
                     self.observeVideoSize(of: nil)
-                    self.observeSeekableWindow(of: nil)
                     self.clearNativeMediaSelection()
                     return
                 }
@@ -352,7 +350,6 @@ final class AetherPlayer: ObservableObject {
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] item in
                         self?.observeVideoSize(of: item)
-                        self?.observeSeekableWindow(of: item)
                         self?.prepareNativeMediaSelection(for: item)
                     }
             }
@@ -381,25 +378,12 @@ final class AetherPlayer: ObservableObject {
         }
         if isLive {
             let clock = engine.clock
-            var window = LiveWindow(
+            let window = LiveWindow(
                 seekableRange: clock.seekableLiveRange,
                 edgeTime: clock.liveEdgeTime,
                 playhead: time,
                 isAtLiveEdge: clock.isAtLiveEdge
             )
-            // Direct HLS: the engine publishes an unbounded `0...edge` (AVPlayer
-            // clamps seeks itself), which would offer media the origin evicted
-            // long ago. The window is the AVPlayer item's own, on the same axis,
-            // and one no deeper than the live holdback is no window at all.
-            if engine.videoRoute == .remoteBypass {
-                if let remote = remoteLiveWindow, remote.isSeekable {
-                    window = LiveWindow(seekableRange: remote.lowerBound...remote.upperBound,
-                                        edgeTime: remote.upperBound, playhead: time,
-                                        isAtLiveEdge: remote.isAtLiveEdge(time))
-                } else {
-                    window = LiveWindow(seekableRange: nil, edgeTime: clock.liveEdgeTime, playhead: time, isAtLiveEdge: true)
-                }
-            }
             if window != liveWindow { liveWindow = window }
         }
         if let source = engine.softwarePiPSource {
@@ -409,72 +393,8 @@ final class AetherPlayer: ObservableObject {
 
     // MARK: - Loading
 
-    /// Live TV. HLS goes to AVPlayer natively; everything else (raw MPEG-TS)
-    /// through the engine's demux. `forceEngineDemux` is for Plex
-    /// `/livetv/sessions/` grants, whose broadcast mp2 and teletext AVPlayer
-    /// cannot decode (tvOS AetherPlayer.loadLive).
     /// Same key as the tvOS Upscale SD and 720p setting; absent = off.
     static let upscaleKey = "upscaleLowResolution"
-
-    func loadLive(url: URL, headers: [String: String]? = nil, forceEngineDemux: Bool = false) async throws {
-        lastLoad = .live(url: url, headers: headers ?? [:], forceEngineDemux: forceEngineDemux)
-        try await performLiveLoad(url: url, headers: headers ?? [:], forceEngineDemux: forceEngineDemux)
-    }
-
-    private func performLiveLoad(url: URL, headers: [String: String], forceEngineDemux: Bool) async throws {
-        beginLoad()
-        let isNativeHLS = Self.isHLSURL(url) && !forceEngineDemux
-        // Forced onto the engine demuxer AND a playlist: the Plex direct-play grant.
-        let usesHLSIngest = !isNativeHLS && Self.isHLSURL(url)
-
-        func makeOptions(nativeRemoteHLS: Bool) -> LoadOptions {
-            var options = LoadOptions(
-                suppressDisplayCriteria: false,
-                httpHeaders: headers,
-                matchContentEnabled: true,
-                panelIsInHDRMode: false,
-                audioBridgeMode: .lossless,
-                isLive: true,
-                dvrWindowSeconds: 1800,
-                nativeRemoteHLS: nativeRemoteHLS,
-                // No libass on iOS: ASS arrives as clean text instead of raw event lines.
-                preserveASSMarkup: false,
-                probesize: 5 * 1024 * 1024,
-                maxAnalyzeDuration: 5_000_000,
-                preferredAudioLanguages: [],
-                preferredSubtitleLanguages: [],
-                teletextPage: Self.regionTeletextPage(),
-                // Software only where the source says it is interlaced; the
-                // engine's own SPS check catches mis-signalled H.264 (#150).
-                preferredDecodePath: (!nativeRemoteHLS && Self.needsDeinterlacing(url)) ? .software : .automatic
-            )
-            // Join at the newest keyframe instead of the ~18 s holdback (#415). Costs rewind
-            // depth on short-GOP channels: the playlist caps at 900 segments.
-            options.liveJoinProfile = .fastZap
-            options.audioDelaySeconds = AudioSync.seconds()
-            return options
-        }
-
-        do {
-            if usesHLSIngest {
-                // LoadOptions.httpHeaders never reaches a custom reader (AE#119).
-                let reader = HLSLiveIngestReader(playlistURL: url, httpHeaders: headers)
-                do {
-                    try await engine.load(source: .custom(reader, formatHint: "mpegts"), options: makeOptions(nativeRemoteHLS: false))
-                } catch {
-                    // Encrypted or fMP4 playlist: retry natively on the same grant.
-                    guard reader.terminalError != nil, !Self.isCancellation(error) else { throw error }
-                    try await engine.load(url: url, startPosition: nil, options: makeOptions(nativeRemoteHLS: true))
-                }
-            } else {
-                try await engine.load(url: url, startPosition: nil, options: makeOptions(nativeRemoteHLS: isNativeHLS))
-            }
-            seedVideoSize()
-        } catch {
-            failLoad(error)
-            throw error
-        }
-    }
 
     /// Plex video on demand. Sidecars are registered at load so they appear
     /// as ordinary subtitle tracks. `keepingTransport` (a quality reload) keeps
@@ -553,8 +473,6 @@ final class AetherPlayer: ObservableObject {
         switch lastLoad {
         case .vod(let url, let headers, let subtitles):
             try? await performVODLoad(url: url, headers: headers, startTime: position > 1 ? position : nil, subtitles: subtitles)
-        case .live(let url, let headers, let forceEngineDemux):
-            try? await performLiveLoad(url: url, headers: headers, forceEngineDemux: forceEngineDemux)
         }
     }
 
@@ -651,10 +569,7 @@ final class AetherPlayer: ObservableObject {
     func seekLive(to sessionSeconds: Double) async {
         let window = liveWindow
         guard let range = window.seekableRange else { return }
-        // On direct HLS, clear of the oldest segment: the next playlist refresh
-        // may evict it before the seek lands.
-        let floor = remoteLiveWindow.map { $0.seekTarget($0.lowerBound) } ?? range.lowerBound
-        let target = min(max(sessionSeconds, floor), window.edgeTime)
+        let target = min(max(sessionSeconds, range.lowerBound), window.edgeTime)
         if window.edgeTime - target < 1 {
             await seekToLiveEdge()
         } else {
@@ -680,33 +595,6 @@ final class AetherPlayer: ObservableObject {
         await engine.seekToLiveEdge()
     }
 
-    // MARK: - Direct HLS rewind window
-
-    /// The AVPlayer item's seekable window, mirrored by KVO: the getter is a
-    /// sync XPC round trip to mediaserverd and this is read on every clock tick.
-    private var itemSeekableWindow: LiveSeekableWindow?
-    private var seekableObservation: AnyCancellable?
-
-    private var remoteLiveWindow: LiveSeekableWindow? {
-        engine.videoRoute == .remoteBypass ? itemSeekableWindow : nil
-    }
-
-    private func observeSeekableWindow(of item: AVPlayerItem?) {
-        guard let item else {
-            seekableObservation = nil
-            itemSeekableWindow = nil
-            return
-        }
-        seekableObservation = item.publisher(for: \.seekableTimeRanges)
-            .map { ranges in
-                LiveSeekableWindow(ranges: ranges.map {
-                    let range = $0.timeRangeValue
-                    return (start: range.start.seconds, duration: range.duration.seconds)
-                })
-            }
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] window in self?.itemSeekableWindow = window }
-    }
 
     func selectAudioTrack(id: Int) {
         if id >= Self.nativeAudioTrackIDBase,
@@ -743,7 +631,6 @@ final class AetherPlayer: ObservableObject {
         pendingSeekTarget = nil
         isStarting = false
         liveWindow = .idle
-        observeSeekableWindow(of: nil)
         rate = 1
         engine.pictureInPictureActive = false
         dropFrameExtractor()
@@ -900,16 +787,6 @@ final class AetherPlayer: ObservableObject {
         if url.pathExtension.lowercased() == "m3u8" { return true }
         let text = url.absoluteString.lowercased()
         return text.contains(".m3u8") || text.contains("format=hls")
-    }
-
-    /// Plex reports the scan type on the tune; absence means progressive,
-    /// because forcing software decode on every playlist channel dropped
-    /// frames and put AirPlay audio seconds late (tvOS AetherPlayer).
-    private static func needsDeinterlacing(_ url: URL) -> Bool {
-        guard let scan = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "rivuletLiveScanType" })?.value?
-            .lowercased() else { return false }
-        return scan != "progressive"
     }
 
     /// AU free-to-air carries captions on 801 without flagging it; a stored

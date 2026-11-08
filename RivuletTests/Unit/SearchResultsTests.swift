@@ -11,15 +11,15 @@ import XCTest
 
 final class SearchResultsTests: XCTestCase {
     private func item(_ id: String, _ kind: MediaKind, provider: String) -> MediaItem {
-        JellyfinFixtures.mediaItem(id, kind: kind, providerID: provider)
+        MediaItemFixtures.mediaItem(id, kind: kind, providerID: provider)
     }
 
     func test_search_asksEveryProvider_inOrder_titlesOnly_eachOnce() async throws {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.searchItems = [item("m1", .movie, provider: "plex:a"), item("c1", .collection, provider: "plex:a"),
                             item("m1", .movie, provider: "plex:a")]
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.searchItems = [item("s1", .show, provider: "jellyfin:s")]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.searchItems = [item("s1", .show, provider: "plex:s")]
 
         let results = try await SearchResults.search("x", providers: [plex, jf])
 
@@ -29,8 +29,8 @@ final class SearchResultsTests: XCTestCase {
     func test_search_aFailingServerOnlyLosesItsOwnResults() async throws {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.searchError = MediaProviderError.unreachable
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.searchItems = [item("s1", .show, provider: "jellyfin:s")]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.searchItems = [item("s1", .show, provider: "plex:s")]
         let results = try await SearchResults.search("x", providers: [plex, jf])
         XCTAssertEqual(results.map(\.ref.itemID), ["s1"])
     }
@@ -54,10 +54,10 @@ final class SearchResultsTests: XCTestCase {
     }
 
     func test_groups_severalServers_areByServerThenKind() {
-        let results = [item("j1", .movie, provider: "jellyfin:s"), item("p1", .movie, provider: "plex:a"),
+        let results = [item("j1", .movie, provider: "plex:s"), item("p1", .movie, provider: "plex:a"),
                        item("p2", .episode, provider: "plex:a")]
-        let groups = SearchResults.groups(results, scope: .all, providerOrder: ["plex:a", "jellyfin:s"])
-        XCTAssertEqual(groups.map { "\($0.providerID ?? "-")/\($0.section)" }, ["plex:a/movies", "plex:a/episodes", "jellyfin:s/movies"])
+        let groups = SearchResults.groups(results, scope: .all, providerOrder: ["plex:a", "plex:s"])
+        XCTAssertEqual(groups.map { "\($0.providerID ?? "-")/\($0.section)" }, ["plex:a/movies", "plex:a/episodes", "plex:s/movies"])
     }
 
     func test_scope_filters() {

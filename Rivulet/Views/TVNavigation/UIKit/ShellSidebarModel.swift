@@ -133,13 +133,11 @@ enum ShellSidebarModel {
     }
 
     /// The order for a profile with none stored: today's default layout.
-    static let defaultOrder = SidebarArrangement.seed(libraryOrder: [], discoverAbove: true, liveTVAbove: false)
+    static let defaultOrder = SidebarArrangement.seed(libraryOrder: [], discoverAbove: true)
 
     // swiftlint:disable:next function_parameter_count
     static func sections(
         libraries: [SidebarLibrary],
-        liveTVSources: [LiveTVDataStore.LiveTVSourceInfo],
-        combineLiveTV: Bool,
         showDiscover: Bool,
         showWatchlist: Bool,
         showFavorites: Bool = false,
@@ -167,17 +165,14 @@ enum ShellSidebarModel {
         }
         sections.append(ShellSidebarSection(title: nil, items: header))
 
-        // Search, Discover and the watchlist need a media server. Without one,
-        // Home is only the welcome screen, kept while there is no Live TV instead.
+        // Search, Discover and the watchlist need a media server.
         var top: [ShellSidebarItem] = []
         if hasMediaServer {
             top.append(ShellSidebarItem(tab: .search, title: String(localized: "Search"), icon: "magnifyingglass"))
         }
-        if !opensToLiveTV(hasMediaServer: hasMediaServer, liveTVSources: liveTVSources) {
-            top.append(ShellSidebarItem(tab: .home, title: String(localized: "Home"), icon: "house.fill"))
-        }
+        top.append(ShellSidebarItem(tab: .home, title: String(localized: "Home"), icon: "house.fill"))
 
-        let rows = arrangeableRows(libraries: libraries, liveTVSources: liveTVSources, combineLiveTV: combineLiveTV,
+        let rows = arrangeableRows(libraries: libraries,
                                    showDiscover: showDiscover && hasMediaServer,
                                    showWatchlist: showWatchlist && hasMediaServer,
                                    showFavorites: showFavorites && hasMediaServer,
@@ -225,12 +220,10 @@ enum ShellSidebarModel {
     }
 
     /// Every arrangeable row shown, before ordering: Discover, the watchlist, Favorites, the
-    /// libraries in order, each server's Playlists row, and Live TV. Settings >
+    /// libraries in order, and each server's Playlists row. Settings >
     /// Sidebar passes everything, hidden rows included.
     static func arrangeableRows(
         libraries: [SidebarLibrary],
-        liveTVSources: [LiveTVDataStore.LiveTVSourceInfo],
-        combineLiveTV: Bool,
         showDiscover: Bool,
         showWatchlist: Bool,
         showFavorites: Bool = false,
@@ -258,31 +251,12 @@ enum ShellSidebarModel {
             guard !hiddenKeys.contains(key), !hiddenKeys.contains(SidebarArrangement.allPlaylistsHidden) else { continue }
             rows.append(Row(key: key, item: playlistsItem(server), serverName: server.name))
         }
-        if !liveTVSources.isEmpty, combineLiveTV {
-            rows.append(Row(key: SidebarArrangement.liveTV,
-                            item: ShellSidebarItem(tab: .liveTV(sourceId: nil), title: String(localized: "Live TV"), icon: "play.rectangle.fill"),
-                            serverName: nil))
-        } else if !combineLiveTV {
-            // Split sources: the source names the row, the badge says it is Live TV.
-            rows += liveTVSources.map { source in
-                Row(key: SidebarArrangement.liveTV(source: source.id),
-                    item: ShellSidebarItem(tab: .liveTV(sourceId: source.id),
-                                           title: source.displayName.replacingOccurrences(of: " Live TV", with: ""),
-                                           icon: icon(forSource: source), badge: String(localized: "Live TV")),
-                    serverName: nil)
-            }
-        }
         return rows
     }
 
     private static func playlistsItem(_ server: PlaylistServer) -> ShellSidebarItem {
         ShellSidebarItem(tab: .playlists(providerID: server.providerID), title: String(localized: "Playlists"),
                          icon: "list.bullet.rectangle")
-    }
-
-    /// Live TV with no media server: the app opens on Live TV and Home is hidden.
-    static func opensToLiveTV(hasMediaServer: Bool, liveTVSources: [LiveTVDataStore.LiveTVSourceInfo]) -> Bool {
-        !hasMediaServer && !liveTVSources.isEmpty
     }
 
     /// A held or long Up stops at Home and at Search: leaving either upward takes
@@ -313,15 +287,7 @@ enum ShellSidebarModel {
         case .shows: return "tv.fill"
         case .music: return "music.note"
         case .photos: return "photo.fill"
-        case .mixed, .liveTV: return "folder.fill"
-        }
-    }
-
-    private static func icon(forSource source: LiveTVDataStore.LiveTVSourceInfo) -> String {
-        switch source.sourceType {
-        case .plex: return "play.rectangle.fill"
-        case .dispatcharr: return "antenna.radiowaves.left.and.right"
-        default: return "list.bullet.rectangle"
+        case .mixed: return "folder.fill"
         }
     }
 }

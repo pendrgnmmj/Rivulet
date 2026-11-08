@@ -49,8 +49,6 @@ final class PlayerInfoCardView: UIView {
         var badges: [String]
         /// Replaces "Genre • runtime" (Live TV's channel and air time).
         var metaLine: [String]? = nil
-        /// Channel logos are fitted, not cropped to the poster frame.
-        var posterFits = false
         var showsFromBeginning = true
     }
 
@@ -80,7 +78,7 @@ final class PlayerInfoCardView: UIView {
         super.init(frame: .zero)
 
         let glass = makePaneGlass(cornerRadius: Metrics.radius)
-        posterView.contentMode = content.posterFits ? .scaleAspectFit : .scaleAspectFill
+        posterView.contentMode = .scaleAspectFill
         posterView.clipsToBounds = true
         posterView.layer.cornerRadius = Metrics.posterRadius
         posterView.layer.cornerCurve = .continuous
@@ -155,7 +153,7 @@ final class PlayerInfoCardView: UIView {
             posterTask = Task { [weak self] in
                 let image = await ImageCacheManager.shared.image(for: url)
                 guard let self, !Task.isCancelled else { return }
-                self.posterView.image = content.posterFits ? image?.legibleChannelLogo : image
+                self.posterView.image = image
             }
         }
     }

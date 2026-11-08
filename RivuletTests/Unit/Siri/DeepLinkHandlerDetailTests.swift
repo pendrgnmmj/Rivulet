@@ -98,13 +98,8 @@ final class DeepLinkHandlerDetailTests: XCTestCase {
         }
     }
 
-    /// The provider prefixes come from `MediaProviderKind`, so a new kind needs no edit here.
-    func testEveryOtherServerKindIsAProviderLink() {
+    func testAnExtraPlexServerIsAProviderLinkButTheSelectedServerIsNot() {
         let handler = makeHandler { key, _ in self.metadata(key) }
-        for kind in MediaProviderKind.otherServerKinds {
-            let server = "\(kind.rawValue):srv"
-            XCTAssertEqual(handler.providerID(of: RivuletLink(.detail, ratingKey: "1", server: server)), server, "\(kind)")
-        }
         MediaItemRef.extraPlexIDs.withLock { $0 = ["plex:office"] }
         defer { MediaItemRef.extraPlexIDs.withLock { $0 = [] } }
         XCTAssertEqual(handler.providerID(of: RivuletLink(.detail, ratingKey: "1", server: "plex:office")), "plex:office")
@@ -118,7 +113,9 @@ final class DeepLinkHandlerDetailTests: XCTestCase {
         let handler = makeHandler { key, _ in self.metadata(key) }
         handler.isSignedIn = { false }
         handler.credentials = { nil }
-        handler.handle(RivuletLink(.detail, ratingKey: "1", server: "jellyfin:srv"))
+        MediaItemRef.extraPlexIDs.withLock { $0 = ["plex:office"] }
+        defer { MediaItemRef.extraPlexIDs.withLock { $0 = [] } }
+        handler.handle(RivuletLink(.detail, ratingKey: "1", server: "plex:office"))
         XCTAssertEqual(handler.heldLink?.ratingKey, "1", "another server needs no Plex sign-in")
         handler.dropHeldLink()
         handler.handle(RivuletLink(.detail, ratingKey: "2", server: "unknown:srv"))

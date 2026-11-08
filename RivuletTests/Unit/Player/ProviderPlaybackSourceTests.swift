@@ -53,7 +53,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     private func playback(provider: StubMediaProvider, stream: StreamInfo) -> ProviderPlayback {
-        let item = JellyfinFixtures.mediaItem("m1")
+        let item = MediaItemFixtures.mediaItem("m1")
         let detail = MediaItemDetail(
             item: item, tagline: nil, genres: [], studios: [], cast: [], directors: [], writers: [],
             chapters: [], mediaSources: [stream.source], trailerURL: nil, contentRating: nil,
@@ -93,7 +93,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerReporting_routesToProviderReporter() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let recorder = RecordingReporter()
         provider.reporter = recorder
         let playback = playback(provider: provider, stream: stream())
@@ -110,7 +110,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     func test_providerSidecars_followTheSourcesExternalTracks() {
         let vm = UniversalPlayerViewModel(
-            providerPlayback: playback(provider: StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin), stream: stream()),
+            providerPlayback: playback(provider: StubMediaProvider(id: "plex:srv", kind: .plex), stream: stream()),
             startOffset: nil
         )
         let sidecars = vm.aetherExternalSubtitles()
@@ -125,7 +125,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     func test_providerPlan_directPlayArmsTheTranscodeFallback() async {
         let vm = UniversalPlayerViewModel(
-            providerPlayback: playback(provider: StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin), stream: stream()),
+            providerPlayback: playback(provider: StubMediaProvider(id: "plex:srv", kind: .plex), stream: stream()),
             startOffset: nil
         )
         await vm.prepareStreamURL()
@@ -135,7 +135,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     func test_providerPlan_hlsStreamHasNoFallback() async {
         let vm = UniversalPlayerViewModel(
-            providerPlayback: playback(provider: StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin),
+            providerPlayback: playback(provider: StubMediaProvider(id: "plex:srv", kind: .plex),
                                        stream: stream(kind: .hlsTranscode, url: hlsURL)),
             startOffset: nil
         )
@@ -146,7 +146,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_transcodeFallback_asksTheProviderAndReportsToTheNewSession() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let first = RecordingReporter()
         let second = RecordingReporter()
         provider.reporter = first
@@ -190,7 +190,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_markWatchedAtCredits_keepsTheProviderSessionOpen() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let recorder = RecordingReporter()
         provider.reporter = recorder
         let playback = playback(provider: provider, stream: stream())
@@ -208,10 +208,10 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     private func episode(_ id: String, season: Int, number: Int) -> MediaItem {
         MediaItem(
-            ref: MediaItemRef(providerID: "jellyfin:srv", itemID: id),
+            ref: MediaItemRef(providerID: "plex:srv", itemID: id),
             kind: .episode, title: "Episode \(id)", sortTitle: nil, overview: nil, year: nil, runtime: 1800,
-            parentRef: MediaItemRef(providerID: "jellyfin:srv", itemID: "season\(season)"),
-            grandparentRef: MediaItemRef(providerID: "jellyfin:srv", itemID: "show"),
+            parentRef: MediaItemRef(providerID: "plex:srv", itemID: "season\(season)"),
+            grandparentRef: MediaItemRef(providerID: "plex:srv", itemID: "show"),
             episodeNumber: number, seasonNumber: season, childProgress: nil,
             userState: MediaUserState(isPlayed: false, viewOffset: 0, isFavorite: false, lastViewedAt: nil),
             artwork: MediaArtwork(poster: nil, backdrop: nil, thumbnail: nil, logo: nil),
@@ -252,7 +252,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_upNext_nextInTheSeasonFromTheProvider() async {
-        let stub = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let stub = StubMediaProvider(id: "plex:srv", kind: .plex)
         let e1 = episode("e1", season: 1, number: 1)
         let e2 = episode("e2", season: 1, number: 2)
         stub.childrenByParent["season1"] = [e2, e1]
@@ -262,7 +262,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_upNext_lastOfASeasonOpensTheNextOne() async {
-        let stub = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let stub = StubMediaProvider(id: "plex:srv", kind: .plex)
         let e2 = episode("e2", season: 1, number: 2)
         let s1 = episode("season1", season: 1, number: 0)
         let s2 = episode("season2", season: 2, number: 0)
@@ -274,13 +274,13 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_upNext_aMovieHasNone() async {
-        let result = await EpisodePicker.upNext(after: JellyfinFixtures.mediaItem("m1"), provider: StubMediaProvider())
+        let result = await EpisodePicker.upNext(after: MediaItemFixtures.mediaItem("m1"), provider: StubMediaProvider())
         XCTAssertNil(result.next)
         XCTAssertTrue(result.season.isEmpty)
     }
 
     func test_providerAutoplay_swapsSourceAndReporter() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let first = RecordingReporter()
         let second = RecordingReporter()
         provider.reporter = first
@@ -337,7 +337,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerAutoplay_upNextRowPlaysThatEpisode() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let e3 = episode("e3", season: 1, number: 3)
         let vm = autoplayVM(provider, seasonEpisodes: [episode("e1", season: 1, number: 1),
                                                       episode("e2", season: 1, number: 2), e3])
@@ -355,7 +355,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerAutoplay_failedPrepareKeepsTheCurrentEpisode() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let first = RecordingReporter()
         provider.reporter = first
         let vm = autoplayVM(provider, seasonEpisodes: [episode("e1", season: 1, number: 1),
@@ -375,7 +375,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerUpNext_leavesSpecialsOutOfTheSeason() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let vm = autoplayVM(provider, seasonEpisodes: [
             episode("e1", season: 1, number: 1),
             episode("sp", season: 0, number: 2),
@@ -392,12 +392,12 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     func test_isPlex() {
         XCTAssertTrue(MediaItemRef(providerID: "plex:abc", itemID: "1").isPlex)
-        XCTAssertFalse(MediaItemRef(providerID: "jellyfin:srv", itemID: "x").isPlex)
+        XCTAssertFalse(MediaItemRef(providerID: "other:srv", itemID: "x").isPlex)
         XCTAssertFalse(MediaItemRef(providerID: "tmdb", itemID: "1").isPlex)
     }
 
     func test_prepare_fetchesDetailStreamAndExtras() async throws {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let expected = playback(provider: provider, stream: stream())
         let marker = PlaybackMarker(kind: .intro, start: 5, end: 30)
         provider.detailResult = expected.detail
@@ -413,11 +413,11 @@ final class ProviderPlaybackSourceTests: XCTestCase {
         XCTAssertEqual(prepared.stream.source.id, "src")
         XCTAssertEqual(prepared.stream.playSessionID, "ps1")
         XCTAssertEqual(prepared.extras.markers, [marker])
-        XCTAssertEqual(prepared.provider.id, "jellyfin:srv")
+        XCTAssertEqual(prepared.provider.id, "plex:srv")
     }
 
     func test_prepare_throwsTheStreamError() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let item = playback(provider: provider, stream: stream())
         provider.detailResult = item.detail
         do {
@@ -429,7 +429,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerPlayback_skipsThePlexConnectionGate() {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         XCTAssertTrue(PlayerPresenter.requiresPlexConnection(for: .plex))
         XCTAssertFalse(PlayerPresenter.requiresPlexConnection(
             for: .provider(playback(provider: provider, stream: stream()))))
@@ -488,7 +488,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
         return MediaArtwork(poster: url("Primary"), backdrop: url("Backdrop"), thumbnail: url("Thumb"), logo: url("Logo"))
     }
 
-    private func artPlayback(_ item: MediaItem, provider: StubMediaProvider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)) -> ProviderPlayback {
+    private func artPlayback(_ item: MediaItem, provider: StubMediaProvider = StubMediaProvider(id: "plex:srv", kind: .plex)) -> ProviderPlayback {
         let base = playback(provider: provider, stream: stream())
         return ProviderPlayback(provider: provider, item: item, detail: detail(item, source: base.stream.source),
                                 stream: base.stream, extras: PlaybackExtras())
@@ -496,10 +496,10 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     private func artEpisode(own: MediaArtwork, show: MediaArtwork) -> MediaItem {
         MediaItem(
-            ref: MediaItemRef(providerID: "jellyfin:srv", itemID: "e1"),
+            ref: MediaItemRef(providerID: "plex:srv", itemID: "e1"),
             kind: .episode, title: "Pilot", sortTitle: nil, overview: nil, year: nil, runtime: 1800,
-            parentRef: MediaItemRef(providerID: "jellyfin:srv", itemID: "season1"),
-            grandparentRef: MediaItemRef(providerID: "jellyfin:srv", itemID: "show"),
+            parentRef: MediaItemRef(providerID: "plex:srv", itemID: "season1"),
+            grandparentRef: MediaItemRef(providerID: "plex:srv", itemID: "show"),
             episodeNumber: 1, seasonNumber: 1, childProgress: nil,
             userState: MediaUserState(isPlayed: false, viewOffset: 0, isFavorite: false, lastViewedAt: nil),
             artwork: own, parentArtwork: nil, grandparentArtwork: show
@@ -507,7 +507,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerMovieArtwork_comesFromTheItem() {
-        let movie = JellyfinFixtures.mediaItem("m1")
+        let movie = MediaItemFixtures.mediaItem("m1")
         let item = MediaItem(
             ref: movie.ref, kind: .movie, title: "Heat", sortTitle: nil, overview: nil, year: 1995, runtime: 100,
             parentRef: nil, grandparentRef: nil, episodeNumber: nil, seasonNumber: nil, childProgress: nil,
@@ -528,7 +528,7 @@ final class ProviderPlaybackSourceTests: XCTestCase {
 
     func test_providerContentFilterTranscript_isTheEnglishSidecarAsIs() {
         let vm = UniversalPlayerViewModel(
-            providerPlayback: playback(provider: StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin), stream: stream()),
+            providerPlayback: playback(provider: StubMediaProvider(id: "plex:srv", kind: .plex), stream: stream()),
             startOffset: nil
         )
         XCTAssertEqual(vm.contentFilterTranscriptURL, srtURL)
@@ -552,9 +552,9 @@ final class ProviderPlaybackSourceTests: XCTestCase {
     }
 
     func test_providerEpisodeInsights_readTheShowsIDsOnce() async {
-        let provider = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let provider = StubMediaProvider(id: "plex:srv", kind: .plex)
         let episode = artEpisode(own: art("e1"), show: art("show"))
-        var showDetail = detail(JellyfinFixtures.mediaItem("show", kind: .show), source: stream().source)
+        var showDetail = detail(MediaItemFixtures.mediaItem("show", kind: .show), source: stream().source)
         showDetail.externalIDs = ["tmdb": "1399", "tvdb": "121361"]
         provider.detailResult = showDetail
         let playback = artPlayback(episode, provider: provider)

@@ -26,6 +26,5 @@ nonisolated struct MediaLibrary: Identifiable, Hashable, Sendable {
         case music
         case mixed
         case photos
-        case liveTV
     }
 }

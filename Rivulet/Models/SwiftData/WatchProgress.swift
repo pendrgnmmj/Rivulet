@@ -15,7 +15,6 @@ import SwiftData
 enum WatchMediaType: String, Codable {
     case movie
     case episode
-    case liveTV
 }
 
 /// Tracks watch progress for Continue Watching functionality
@@ -24,7 +23,6 @@ final class WatchProgress {
     @Attribute(.unique) var id: UUID
     var mediaType: WatchMediaType
     var plexRatingKey: String?    // Plex item identifier
-    var channelId: UUID?          // For live TV (last watched channel)
     var progressSeconds: Double
     var durationSeconds: Double
     var lastWatched: Date
@@ -32,7 +30,7 @@ final class WatchProgress {
 
     // Cached metadata for display without network
     var title: String
-    var subtitle: String?         // Episode title or channel name
+    var subtitle: String?         // Episode title
     var thumbnailURL: String?
     var year: Int?
     var showTitle: String?        // For episodes: the show name

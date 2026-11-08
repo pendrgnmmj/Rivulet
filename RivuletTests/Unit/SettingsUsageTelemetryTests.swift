@@ -11,7 +11,6 @@ final class SettingsUsageTelemetryTests: XCTestCase {
         let snapshot = SettingsUsageTelemetry.snapshot()
         XCTAssertNotNil(snapshot["playback.upscaleLowResolution"])
         XCTAssertNotNil(snapshot["sidebar.showDiscoverTab"])
-        XCTAssertNotNil(snapshot["liveTV.defaultLayout"])
     }
 
     func test_snapshot_leavesOutTextAndHeaders() {

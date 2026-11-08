@@ -39,8 +39,6 @@ struct MacShellCommands: Commands {
                 NotificationCenter.default.post(name: .macFocusSearch, object: nil)
             }
                 .keyboardShortcut("f")
-            Button("Live TV") { selection = .some(.liveTV) }
-                .keyboardShortcut("2")
             if showFavorites, browse.offersFavorites {
                 Button("Favorites") { selection = .some(.favorites) }
                     .keyboardShortcut("3")

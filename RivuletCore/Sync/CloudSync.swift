@@ -7,7 +7,7 @@ import CryptoKit
 import Foundation
 
 /// iCloud sync for both apps. Preferences ride `NSUbiquitousKeyValueStore` through `PreferenceMirror`;
-/// `UserDefaults` stays the source of truth. Accounts and Live TV sources ride one encrypted CloudKit
+/// `UserDefaults` stays the source of truth. Accounts ride one encrypted CloudKit
 /// record through `AccountSyncCoordinator`. The per-device switch is `SyncCatalog.enabledKey`, off by default.
 @MainActor
 final class CloudSync: ObservableObject {
@@ -16,7 +16,7 @@ final class CloudSync: ObservableObject {
     /// Set by the host at launch, before `start()`: stores that cache a synced key reload here.
     static var onPreferencesApplied: ((Set<String>) -> Void)?
     /// Every account type the vault carries; both apps sign all of them in.
-    static var accountKinds: [SyncedAccountKind] { [.plex, .liveTV, .jellyfin, .emby] }
+    static var accountKinds: [SyncedAccountKind] { [.plex] }
     /// Accounts or sources were signed in or out here because another device changed them.
     static var onAccountsChanged: (() -> Void)?
 
@@ -156,14 +156,7 @@ final class CloudSync: ObservableObject {
         guard isEnabled, let mirror else { return }
         let applied = mirror.reconcile()
         guard !applied.isEmpty else { return }
-        LiveTVDataStore.shared.syncedPreferencesChanged(applied)
         PlexExtraServers.shared.syncedPreferencesChanged(applied)
-        if applied.contains(JellyfinLiveTVProvider.hiddenKey) {
-            _ = JellyfinLiveTVProvider.setHidden(defaults.bool(forKey: JellyfinLiveTVProvider.hiddenKey))
-        }
-        if applied.contains(EmbyLiveTVProvider.hiddenKey) {
-            _ = EmbyLiveTVProvider.setHidden(defaults.bool(forKey: EmbyLiveTVProvider.hiddenKey))
-        }
         Self.onPreferencesApplied?(applied)
     }
 

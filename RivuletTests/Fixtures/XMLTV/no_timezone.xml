@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<tv>
-  <channel id="ch1">
-    <display-name>Channel One</display-name>
-  </channel>
-  <programme start="20240115120000" stop="20240115130000" channel="ch1">
-    <title>Test Program</title>
-  </programme>
-</tv>

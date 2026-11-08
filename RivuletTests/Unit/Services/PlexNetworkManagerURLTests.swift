@@ -495,33 +495,6 @@ final class PlexNetworkManagerURLTests: XCTestCase {
         XCTAssertTrue(urlString.contains("height=600"))
     }
 
-    // MARK: - Live TV Stream URL Tests
-
-    func testBuildLiveTVStreamURLIncludesChannelKey() {
-        let channelKey = "/livetv/sessions/12345/playback"
-        let url = networkManager.buildLiveTVStreamURL(
-            serverURL: testServerURL,
-            authToken: testAuthToken,
-            channelKey: channelKey
-        )
-
-        XCTAssertNotNil(url)
-        XCTAssertTrue(url!.absoluteString.contains(channelKey))
-    }
-
-    func testBuildLiveTVStreamURLIncludesPlexHeaders() {
-        let url = networkManager.buildLiveTVStreamURL(
-            serverURL: testServerURL,
-            authToken: testAuthToken,
-            channelKey: "/livetv/sessions/12345/playback"
-        )
-
-        XCTAssertNotNil(url)
-        let urlString = url!.absoluteString
-        XCTAssertTrue(urlString.contains("X-Plex-Token="))
-        XCTAssertTrue(urlString.contains("X-Plex-Client-Identifier="))
-    }
-
     // MARK: - Plex Headers Tests
 
     func testPlexHeadersIncludesAllRequiredHeaders() {

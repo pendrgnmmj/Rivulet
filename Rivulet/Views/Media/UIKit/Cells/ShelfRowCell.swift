@@ -202,7 +202,6 @@ final class ShelfRowCell: UICollectionViewCell {
         rowCollectionView.register(ContinueWatchingCell.self, forCellWithReuseIdentifier: ContinueWatchingCell.reuseID)
         rowCollectionView.register(WatchlistPosterCell.self, forCellWithReuseIdentifier: WatchlistPosterCell.reuseID)
         rowCollectionView.register(PosterSkeletonCell.self, forCellWithReuseIdentifier: PosterSkeletonCell.reuseID)
-        rowCollectionView.register(LiveCardCell.self, forCellWithReuseIdentifier: LiveCardCell.reuseID)
 
         contentView.addSubview(headerLabel)
         contentView.addSubview(rowCollectionView)

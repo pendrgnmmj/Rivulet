@@ -41,7 +41,7 @@ final class MediaProviderRegistry {
 
     /// The signed-in Plex server. Code that maps Plex hubs or metadata into
     /// `MediaItem`s mints its refs from this. Never "first provider": with a
-    /// second backend registered that could be the Jellyfin one.
+    /// second Plex server registered.
     var plexProvider: (any MediaProvider)? {
         currentPlexID.flatMap { providers[$0] }
     }
@@ -55,13 +55,9 @@ final class MediaProviderRegistry {
     }
 
     /// Every server Home and the sidebar show beside the selected Plex server:
-    /// the extra Plex servers in their given order (by name), then each other
-    /// kind in `MediaProviderKind` order, a kind's servers sorted by id.
+    /// the extra Plex servers, in their given order (by name).
     var secondaryProviders: [any MediaProvider] {
         extraPlexIDs.compactMap { providers[$0] }
-            + MediaProviderKind.otherServerKinds.flatMap { kind in
-                providers.values.filter { $0.kind == kind }.sorted { $0.id < $1.id }
-            }
     }
 
     /// The Plex server an item lives on: an extra server's own address and
@@ -90,11 +86,9 @@ final class MediaProviderRegistry {
     }
 
     /// Brings the registry in line with what is signed in: the Plex server from
-    /// `PlexAuthManager`, each other kind's server from its stored account
-    /// (`OtherServerKind`). Called at launch, after any Plex auth change
-    /// (ContentView), and after another server's sign-in or sign-out. Those
-    /// are rebuilt from their stored accounts each time; Plex entries go only
-    /// when Plex is signed out.
+    /// `PlexAuthManager`. Called at launch, after any Plex auth change
+    /// (ContentView), and after another server's sign-in or sign-out. Plex
+    /// entries go only when Plex is signed out.
     func populateFromCurrentAuth() {
         let auth = PlexAuthManager.shared
         let extras = PlexExtraServers.shared
@@ -121,9 +115,6 @@ final class MediaProviderRegistry {
         defer { onSecondaryProvidersChanged?(secondaryProviders) }
         providers = providers.filter { $0.value.kind == .plex && !extraPlexIDs.contains($0.key) }
         extraPlexIDs = []
-        for other in OtherServerKind.all {
-            if let stored = other.storedProvider() { register(stored) }
-        }
         guard let serverURL = plexServerURL, let token = plexToken else {
             providers = providers.filter { $0.value.kind != .plex }
             currentPlexID = nil

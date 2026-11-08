@@ -17,20 +17,20 @@ final class ServerLabelsTests: XCTestCase {
     }
 
     func test_severalServers_nameTheirRowsAndTitles() {
-        let labels = ServerLabels([(id: "plex:a", name: "Home", kind: .plex), (id: "jellyfin:s", name: "Attic", kind: .jellyfin)])
-        XCTAssertEqual(labels.badge(providerID: "jellyfin:s"), "Attic")
+        let labels = ServerLabels([(id: "plex:a", name: "Home", kind: .plex), (id: "plex:s", name: "Attic", kind: .plex)])
+        XCTAssertEqual(labels.badge(providerID: "plex:s"), "Attic")
         XCTAssertEqual(labels.title("Movies", providerID: "plex:a"), "Movies (Home)")
     }
 
     func test_twoServersWithOneName_alsoSayTheirType() {
-        let labels = ServerLabels([(id: "plex:a", name: "Media", kind: .plex), (id: "emby:e", name: "Media", kind: .emby)])
-        XCTAssertEqual(labels.badge(providerID: "emby:e"), "Media (Emby)")
+        let labels = ServerLabels([(id: "plex:a", name: "Media", kind: .plex), (id: "plex:e", name: "Media", kind: .plex)])
+        XCTAssertEqual(labels.badge(providerID: "plex:e"), "Media (Plex)")
         XCTAssertEqual(labels.badge(providerID: "plex:a"), "Media (Plex)")
     }
 
     func test_anIdNoLongerRegistered_namesItsKind() {
-        let labels = ServerLabels([(id: "plex:a", name: "Home", kind: .plex), (id: "jellyfin:s", name: "Attic", kind: .jellyfin)])
-        XCTAssertEqual(labels.badge(providerID: "emby:gone"), "Emby")
+        let labels = ServerLabels([(id: "plex:a", name: "Home", kind: .plex), (id: "plex:s", name: "Attic", kind: .plex)])
+        XCTAssertEqual(labels.badge(providerID: "plex:gone"), "Plex")
         XCTAssertEqual(labels.badge(providerID: "nonsense"), nil)
     }
 

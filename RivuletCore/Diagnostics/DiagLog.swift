@@ -16,7 +16,6 @@ nonisolated enum DiagLog {
         case launch, auth, connection, profile, home, network, playback, servers, crumb, http, attest
         case topShelf = "top_shelf"
         case deepLink = "deep_link"
-        case liveTV = "live_tv"
         case sync
     }
 

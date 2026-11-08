@@ -13,8 +13,6 @@ enum MacRoute: Hashable {
     case library(MediaLibrary)
     /// A cast or crew member; `providerID` is the server whose artwork URL the portrait is.
     case person(MediaPerson, providerID: String)
-    /// Live TV's scheduled and finished recordings.
-    case liveRecordings
 }
 
 extension MacRoute {
@@ -26,7 +24,6 @@ extension MacRoute {
         case .playlist(let playlist): playlist.item.ref.providerID
         case .library(let library): library.providerID
         case .person(_, let providerID): providerID
-        case .liveRecordings: ""
         }
     }
 }
@@ -35,7 +32,6 @@ extension MacRoute {
 enum MacSidebarItem: Hashable {
     case home
     case search
-    case liveTV
     case favorites
     case library(MediaLibrary)
     case playlists(providerID: String)
@@ -56,7 +52,6 @@ extension MacSidebarItem {
         switch self {
         case .home: "home"
         case .search: "search"
-        case .liveTV: "live-tv"
         case .favorites: "favorites"
         case .library(let library): "library:\(library.providerID)|\(library.id)"
         case .playlists(let providerID): "playlists:\(providerID)"
@@ -68,7 +63,6 @@ extension MacSidebarItem {
         switch key {
         case "home": return .home
         case "search": return .search
-        case "live-tv": return .liveTV
         case "favorites": return .favorites
         default:
             if key.hasPrefix("playlists:") { return .playlists(providerID: String(key.dropFirst("playlists:".count))) }

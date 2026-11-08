@@ -6,7 +6,7 @@
 //  RivuletTests
 //
 //  Appearance's section captions are rows and must never be focusable, or they
-//  take a row's focus slot. Also pins the Live TV rows' one home and their ids.
+//  take a row's focus slot.
 //
 
 import XCTest
@@ -55,7 +55,7 @@ final class SettingsSectionHeaderTests: XCTestCase {
     /// Sidebar placement lives on Settings > Sidebar now.
     func test_sidebarPlacementRows_leftAppearance() {
         let gone = ["showDiscoverTab", "discoverAboveLibraries", "showWatchlistTab", "showPlaylistsTab", "liveTVAboveLibraries"]
-        let ids = appearance.map(\.id) + SettingsContent.rows(for: .liveTV).map(\.id)
+        let ids = appearance.map(\.id)
         XCTAssertTrue(gone.allSatisfy { !ids.contains($0) })
     }
 
@@ -74,21 +74,5 @@ final class SettingsSectionHeaderTests: XCTestCase {
     func test_triviaSpoilerRow_isGone() {
         XCTAssertFalse(appearance.contains { $0.id == "hideTriviaSpoilers" })
         XCTAssertNil(SettingsDescriptorStore.descriptor(for: "hideTriviaSpoilers"))
-    }
-
-    /// Where Live TV sits and how it opens show on both pages: people look
-    /// for them under Live TV as well as Appearance.
-    func test_liveTVAppearanceRows_onBothPages() {
-        let shared = ["defaultLayout"]
-        let appearanceIDs = appearance.map(\.id)
-        let liveTVIDs = SettingsContent.rows(for: .liveTV).map(\.id)
-        for id in shared {
-            XCTAssertTrue(appearanceIDs.contains(id), "\(id) should be on Appearance")
-            XCTAssertTrue(liveTVIDs.contains(id), "\(id) should be on the Live TV page")
-            XCTAssertNotNil(SettingsDescriptorStore.descriptor(for: id),
-                            "\(id) lost its description panel entry")
-        }
-        // Playback-side Live TV rows stay put.
-        XCTAssertTrue(liveTVIDs.contains("confirmExitMultiview"))
     }
 }

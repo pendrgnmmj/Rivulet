@@ -17,7 +17,7 @@ final class ProviderPlayRouteTests: XCTestCase {
     }
 
     func test_otherProvidersPlayThroughTheSeamWithOrWithoutAPlexSession() throws {
-        let jf = StubMediaProvider(id: "jellyfin:srv", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:srv", kind: .plex)
         XCTAssertEqual(try ProviderPlayback.route(for: jf, hasPlexSession: false), .provider)
         XCTAssertEqual(try ProviderPlayback.route(for: jf, hasPlexSession: true), .provider)
     }

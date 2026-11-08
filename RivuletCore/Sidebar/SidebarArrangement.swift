@@ -17,14 +17,11 @@ enum SidebarArrangement {
     static let watchlist = "#watchlist"
     /// Favorite movies and shows from every server.
     static let favorites = "#favorites"
-    /// Live TV with its sources combined.
-    static let liveTV = "#livetv"
     /// Where libraries go while the order holds none (a fresh install). Never shown.
     static let librariesAnchor = "#libraries"
     /// In the hidden set: every Playlists row, from the retired Show Playlists toggle.
     static let allPlaylistsHidden = "#playlists/*"
 
-    static func liveTV(source: String) -> String { "#livetv/" + source }
     /// `server` is the library keys' server: "" for the selected Plex server, else its provider id.
     static func playlists(server: String) -> String { playlistsPrefix + server }
 
@@ -32,8 +29,6 @@ enum SidebarArrangement {
 
     /// Any row that is not a library.
     static func isAppRow(_ key: String) -> Bool { key.hasPrefix("#") }
-
-    static func isLiveTV(_ key: String) -> Bool { key == liveTV || key.hasPrefix("#livetv/") }
 
     /// The server a row belongs to: libraries and Playlists rows; nil for the rest.
     static func server(ofKey key: String) -> String? {
@@ -43,20 +38,18 @@ enum SidebarArrangement {
     }
 
     /// Today's fixed layout as an order, for a profile that has never stored one.
-    static func seed(libraryOrder: [String], discoverAbove: Bool, liveTVAbove: Bool) -> [String] {
-        (discoverAbove ? [discover] : []) + [watchlist, favorites]
-            + (liveTVAbove ? [liveTV] : []) + [librariesAnchor]
+    static func seed(libraryOrder: [String], discoverAbove: Bool) -> [String] {
+        (discoverAbove ? [discover] : []) + [watchlist, favorites, librariesAnchor]
             + libraryOrder.filter { !isAppRow($0) }
-            + (liveTVAbove ? [] : [liveTV]) + (discoverAbove ? [] : [discover])
+            + (discoverAbove ? [] : [discover])
     }
 
     /// Whether `order` was seeded already.
     static func isSeeded(_ order: [String]) -> Bool { order.contains(librariesAnchor) }
 
     /// `key` placed in `order` next to its kin: after the last row of its server
-    /// (a library after its server's last library),
-    /// after the last Live TV row, else (a server's first row) after the last
-    /// server row or the libraries anchor, else last.
+    /// (a library after its server's last library), else (a server's first row)
+    /// after the last server row or the libraries anchor, else last.
     static func insert(_ key: String, into order: [String]) -> [String] {
         guard !order.contains(key) else { return order }
         var order = order
@@ -68,8 +61,6 @@ enum SidebarArrangement {
                 ?? order.lastIndex { self.server(ofKey: $0) == server }
                 ?? order.lastIndex { self.server(ofKey: $0) != nil }
                 ?? order.firstIndex(of: librariesAnchor)
-        } else if isLiveTV(key) {
-            kin = order.lastIndex(where: isLiveTV)
         } else if key == favorites {
             // Beside the watchlist, its account-level sibling, in an order stored before Favorites existed.
             kin = order.firstIndex(of: watchlist) ?? order.firstIndex(of: discover)

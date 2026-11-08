@@ -28,7 +28,7 @@ nonisolated enum SyncCatalog {
         // Live TV (not recents, viewings or event slots: device habit)
         "liveTVLayout", "liveTVKeepPlayingInGuide", "combineLiveTVSources", "confirmExitMultiview",
         "liveTVSuggestions", "liveTVFavoriteChannelIds", "liveTVUnfavoritedChannelIds",
-        "liveTVHiddenPlexServers", "liveTVHideJellyfin", "liveTVHideEmby",
+        "liveTVHiddenPlexServers",
         // Servers the user turned off, by machine id
         "plexDisabledServers",
     ]

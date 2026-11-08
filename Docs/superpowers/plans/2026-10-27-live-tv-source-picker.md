@@ -1,5 +1,8 @@
 # Live TV Source Picker Implementation Plan
 
+> **Removed 2026-11-07:** This feature was removed in the Plex-only fork. See
+> `Docs/superpowers/plans/2026-11-07-plex-only-strip-down.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace My Own Server with one add-source row per app (Dispatcharr, Tvheadend, Threadfin, Xtream Codes, Playlist URL), fix Threadfin, and add Tvheadend live TV, guide and recording on tvOS and iOS.

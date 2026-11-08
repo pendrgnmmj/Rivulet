@@ -71,19 +71,8 @@ final class MacPlaybackController: NSObject, ObservableObject {
         }
     }
 
-    /// The title being played, nil for a channel.
+    /// The title being played.
     var plexSession: MacPlexPlayback? { session as? MacPlexPlayback }
-
-    /// Live TV: one click from a channel to full-window playback.
-    func playLive(_ channel: UnifiedChannel) {
-        start(MacLivePlayback(channel: channel))
-    }
-
-    /// Channel Up and Down, along the lineup.
-    func stepChannel(_ offset: Int) {
-        guard let live = session as? MacLivePlayback, let next = live.neighbour(offset) else { return }
-        live.switchChannel(to: next)
-    }
 
     func start(_ newSession: any MacPlaybackSession) {
         end()
@@ -176,11 +165,7 @@ final class MacPlaybackController: NSObject, ObservableObject {
             ? Double(defaults.object(forKey: SkipLengthKeys.forward) as? Int ?? 30)
             : Double(defaults.object(forKey: SkipLengthKeys.back) as? Int ?? 10)
         guard let session else { return }
-        if let live = session as? MacLivePlayback {
-            live.skip(by: forward ? seconds : -seconds)
-        } else {
-            Task { await session.player.skip(by: forward ? seconds : -seconds) }
-        }
+        Task { await session.player.skip(by: forward ? seconds : -seconds) }
     }
 
     func adjustVolume(by delta: Float) {
@@ -369,8 +354,6 @@ private struct MacPlaybackHost: ViewModifier {
                     Group {
                         if let plex = session as? MacPlexPlayback {
                             MacPlayerView(session: plex, player: plex.player, controller: controller)
-                        } else if let live = session as? MacLivePlayback {
-                            MacLivePlayerView(session: live, player: live.player, controller: controller)
                         }
                     }
                     .ignoresSafeArea()

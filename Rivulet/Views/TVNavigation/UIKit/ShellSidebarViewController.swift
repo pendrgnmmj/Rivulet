@@ -1115,8 +1115,6 @@ final class ShellSidebarViewController: UIViewController {
         let profileName = ShellSidebarModel.currentProfileName
         return ShellSidebarModel.sections(
             libraries: SidebarLibrary.current(),
-            liveTVSources: LiveTVDataStore.shared.sources,
-            combineLiveTV: flag("combineLiveTVSources", default: true),
             showDiscover: flag("showDiscoverTab", default: true) && PlexAuthManager.shared.hasCredentials,
             showWatchlist: flag("showWatchlistTab", default: true) && PlexAuthManager.shared.hasCredentials,
             showFavorites: flag("showFavoritesTab", default: false) && PersonalHomeRows.offersFavorites,
@@ -1290,16 +1288,6 @@ extension ShellSidebarViewController {
                 guard let self else { return }
                 ShufflePlayback.shuffle(library, from: self)
             }
-        }
-        if SidebarArrangement.isLiveTV(key) {
-            let current = LiveTVLayout(rawValue: UserDefaults.standard.string(forKey: "liveTVLayout") ?? "") ?? .fallback
-            let layouts = [LiveTVLayout.browse, .guide].map { layout -> TileMenuAction in
-                TileMenuAction(verbatim: layout.description,
-                               systemImage: layout == current ? "checkmark" : (layout == .guide ? "list.bullet.rectangle" : "square.grid.2x2")) {
-                    UserDefaults.standard.set(layout.rawValue, forKey: "liveTVLayout")
-                }
-            }
-            return [layouts, [move]]
         }
         guard SidebarArrangement.server(ofKey: key) != nil else { return [[move]] }
         let hide = TileMenuAction(title: "Hide from Sidebar", systemImage: "eye.slash") { [weak self] in

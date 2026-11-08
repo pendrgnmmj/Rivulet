@@ -12,8 +12,6 @@ struct IOSAccountView: View {
     @State private var showingSignIn = false
     @State private var confirmingSignOut = false
     @State private var appIcon = AppIcon.current
-    /// Bumped when the sheet shows again, so the server rows re-read their stored accounts.
-    @State private var serverRevision = 0
 
     var body: some View {
         NavigationStack {
@@ -22,11 +20,6 @@ struct IOSAccountView: View {
                     accountSections
                 } else {
                     signedOutSection
-                }
-
-                // Server accounts are the owner's, not a restricted profile's.
-                if !profiles.isRestrictedProfile {
-                    serversSection
                 }
 
                 Section("Settings") {
@@ -56,14 +49,6 @@ struct IOSAccountView: View {
                         Label("App Icon", systemImage: "app.badge")
                     }
                     .pickerStyle(.navigationLink)
-                    // Sources and server choice are the owner's, not a restricted profile's.
-                    if !profiles.isRestrictedProfile {
-                        NavigationLink {
-                            IOSLiveTVSettingsView()
-                        } label: {
-                            Label("Live TV", systemImage: "play.tv")
-                        }
-                    }
                 }
 
                 // Sources and server choice are the owner's, not a restricted profile's.
@@ -103,7 +88,6 @@ struct IOSAccountView: View {
                     }
                 }
             }
-            .onAppear { serverRevision += 1 }
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -148,23 +132,6 @@ struct IOSAccountView: View {
                         Text(plex.serversSummary ?? "")
                     } label: {
                         Label("Servers", systemImage: "server.rack")
-                    }
-                }
-            }
-        }
-    }
-
-    private var serversSection: some View {
-        Section("Servers") {
-            let _ = serverRevision
-            ForEach(OtherServerKind.all, id: \.kind) { server in
-                NavigationLink {
-                    IOSServerSignInView(server: server)
-                } label: {
-                    LabeledContent {
-                        Text(server.account()?.name ?? "")
-                    } label: {
-                        Label("\(server.kind.displayName) Server", systemImage: "server.rack")
                     }
                 }
             }

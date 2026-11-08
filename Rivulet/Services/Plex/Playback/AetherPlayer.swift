@@ -382,8 +382,6 @@ final class AetherPlayer: PlayerProtocol {
         videoSizeCancellable = nil
         guard let player else {
             videoItemCancellable = nil
-            seekableCancellable = nil
-            itemSeekableWindow = nil
             videoSize = .zero
             return
         }
@@ -394,20 +392,8 @@ final class AetherPlayer: PlayerProtocol {
                 guard let self else { return }
                 guard let item else {
                     self.videoSizeCancellable = nil
-                    self.seekableCancellable = nil
-                    self.itemSeekableWindow = nil
                     return
                 }
-                self.seekableCancellable = item
-                    .publisher(for: \.seekableTimeRanges)
-                    .map { ranges in
-                        LiveSeekableWindow(ranges: ranges.map {
-                            let range = $0.timeRangeValue
-                            return (start: range.start.seconds, duration: range.duration.seconds)
-                        })
-                    }
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] window in self?.itemSeekableWindow = window }
                 self.videoSizeCancellable = item
                     .publisher(for: \.presentationSize)
                     // A zero size is the pre-ready placeholder; publishing it
@@ -748,23 +734,6 @@ final class AetherPlayer: PlayerProtocol {
         )
     }
 
-    /// What a live load is for.
-    enum LiveLoadRole {
-        /// The one channel on screen: full rewind window, and the software
-        /// deinterlacer wherever the channel may be interlaced.
-        case fullscreen
-        /// One of up to four multiview tiles decoding at once. Keeps the
-        /// engine's own decode routing (it still sends MPEG-2 and declared
-        /// interlace to software) rather than forcing four software decodes,
-        /// and a short rewind window, since a tile is never scrubbed.
-        case multiviewSlot
-    }
-
-    /// Whether the last live load handed the origin's HLS to AVPlayer as is
-    /// (who renders its captions depends on it). Travels with the player when
-    /// a session moves between surfaces.
-    private(set) var isOnNativeLiveRoute = false
-
     /// The engine's decode path and source codec for the current load, as
     /// plain strings for telemetry.
     var videoRouteName: String { engine.videoRoute.rawValue }
@@ -788,221 +757,6 @@ final class AetherPlayer: PlayerProtocol {
         return mlOnly ? "\(size) (ML)" : "\(size) (ML + MetalFX)"
     }
 
-    /// The start of a fullscreen live join, measured for issue #319. See
-    /// LiveAVTelemetry.
-    private var avCapture: LiveAVCapture?
-    private var avCaptureTask: Task<Void, Never>?
-    /// Which capture holds the engine's global log handler.
-    private static var engineLogCapture: LiveAVCapture?
-
-    private func startAVCapture(url: URL) {
-        let capture = LiveAVCapture(url: url)
-        avCapture = capture
-        Self.engineLogCapture = capture
-        // @Sendable, so neither closure is inferred main-actor: the engine
-        // calls both on its own threads.
-        EngineLog.handler = { @Sendable line in capture.ingest(line: line) }
-        engine.setSoftwareVideoFrameTimeObserver { @Sendable time in
-            capture.frame(pts: time.presentation.seconds)
-        }
-    }
-
-    /// Report what the capture has, if the join got as far as sound and a
-    /// picture, and stop listening.
-    func finishAVCapture() {
-        avCaptureTask?.cancel()
-        avCaptureTask = nil
-        guard let capture = avCapture else { return }
-        avCapture = nil
-        engine.setSoftwareVideoFrameTimeObserver(nil)
-        if Self.engineLogCapture === capture {
-            // ponytail: one global handler; a second fullscreen join replaces it.
-            EngineLog.handler = nil
-            Self.engineLogCapture = nil
-        }
-        if let sample = capture.sample() { LiveAVTelemetry.report(sample) }
-    }
-
-    /// Live TV load. HLS sources go to AVPlayer directly (`nativeRemoteHLS`), anything else
-    /// through the engine's remux. `forceEngineDemux` makes the engine open the playlist, the
-    /// fallback when a server rejects AVPlayer's request pattern.
-    func loadLive(url: URL, headers: [String: String]?, forceEngineDemux: Bool = false,
-                  role: LiveLoadRole = .fullscreen) async throws {
-        finishAVCapture()
-        dropFrameExtractor()
-        if role == .fullscreen { startAVCapture(url: url) }
-        let isHLS = Self.liveRoute(for: url, forceEngineDemux: forceEngineDemux) == .nativeHLS
-        isOnNativeLiveRoute = isHLS
-        // Forced onto the engine demuxer AND the source is a playlist: the Plex
-        // direct-play case. See the ingest branch below.
-        let usesHLSIngest = !isHLS && Self.isHLSURL(url)
-        let httpHeaders = headers ?? [:]
-        // A wireless receiver (HomePod, an AirPlay speaker) buffers about two
-        // seconds before its first sample sounds. A join that starts the clock
-        // the moment a frame is ready plays that stretch as silent picture and
-        // then snaps into sync (issue #319). Mount paused instead, and let the
-        // start wait for the route: see the priming step after the load.
-        let joinsWirelessAudio = Self.isWirelessAudioRoute()
-
-        func makeOptions(nativeRemoteHLS: Bool) -> LoadOptions {
-            var options = LoadOptions(
-                suppressDisplayCriteria: false,
-                httpHeaders: httpHeaders,
-                // Same rich config as VOD, plus the live-specific flags.
-                matchContentEnabled: true,
-                panelIsInHDRMode: Self.panelIsInHDRMode(),
-                audioBridgeMode: .lossless,
-                isLive: true,
-                // ~30-minute DVR rewind window (engine retains it disk-backed).
-                dvrWindowSeconds: role == .fullscreen ? 1800 : 120,
-                nativeRemoteHLS: nativeRemoteHLS,
-                preserveASSMarkup: true,
-                probesize: 5 * 1024 * 1024,
-                maxAnalyzeDuration: 5_000_000,
-                // Honor the user's saved audio/subtitle language preferences, same
-                // as VOD, so the right tracks are picked on the first frame.
-                preferredAudioLanguages: Self.livePreferredAudioLanguages(),
-                preferredSubtitleLanguages: Self.livePreferredSubtitleLanguages(),
-                // DVB teletext caption page. libzvbi auto-detect (nil) only finds a
-                // page the broadcast FLAGS as a subtitle page; AU FTA channels carry
-                // captions on 801 without that flag, so auto-detect returns nothing.
-                // Region-default to 801 for AU, otherwise auto-detect.
-                teletextPage: Self.regionTeletextPage(),
-                // Software path (bwdif) only where PMS's tune says the channel is interlaced;
-                // the engine's SPS check covers other sources (#150). Ignored on native HLS.
-                preferredDecodePath: (role == .fullscreen && !nativeRemoteHLS && Self.needsDeinterlacing(url))
-                    ? .software : .automatic
-            )
-            // Segments cut at every keyframe join in seconds instead of waiting
-            // out the standard ~18s holdback (loopback joins measured 8-34s, #415).
-            // Costs rewind depth on short-GOP channels: the playlist caps at 900 segments.
-            options.liveJoinProfile = .fastZap
-            options.audioDelaySeconds = AudioSync.seconds()
-            if role == .multiviewSlot {
-                // Field-rate deinterlacing on a quarter-screen tile only
-                // doubles decoder output for nothing.
-                options.deinterlaceFieldRate = .frame
-            }
-            if joinsWirelessAudio {
-                // AVPlayer's own start-up wait is what rides out the receiver's
-                // buffer on the native routes; the one-shot that cuts it short
-                // is exactly wrong here.
-                options.liveJoinStartsImmediately = false
-                options.autoplay = false
-            }
-            return options
-        }
-
-        let options = makeOptions(nativeRemoteHLS: isHLS)
-
-        // Same reason as the VOD path: a zap is new content, and broadcast
-        // mixes 4:3 SD with 16:9 HD channel to channel, so a reused slot must
-        // not measure the new channel against the old one's picture rect.
-        videoSize = .zero
-        userIntendsToPlay = true
-        pendingReloadSince = nil
-        do {
-            // A Plex direct-play part key is an HLS playlist, which the raw live path
-            // rejects (AE#140). HLSLiveIngestReader demuxes its MPEG-TS so mp2 and teletext survive.
-            if usesHLSIngest {
-                // The reader does its own HTTP on its own session, so the
-                // headers have to be handed to it here: `LoadOptions.httpHeaders`
-                // never reaches a custom IOReader (AE#119).
-                let reader = HLSLiveIngestReader(playlistURL: url, httpHeaders: httpHeaders)
-                do {
-                    try await engine.load(source: .custom(reader, formatHint: "mpegts"), options: options)
-                } catch {
-                    // The reader does not throw out of `read`: it records why it
-                    // gave up and the probe fails as a `DemuxerError`, so the
-                    // error type says nothing. Its own verdict does. Encryption or
-                    // an fMP4 playlist it will not open: retry natively on the
-                    // SAME session rather than letting the host fall back, which
-                    // costs another tune and, on a single-tuner box, competes with
-                    // the grab we are already holding.
-                    guard reader.terminalError != nil, !isCancellationError(error) else { throw error }
-                    try await engine.load(
-                        url: url,
-                        startPosition: nil,
-                        options: makeOptions(nativeRemoteHLS: true)
-                    )
-                }
-            } else {
-                try await engine.load(url: url, startPosition: nil, options: options)
-            }
-            if let capture = avCapture {
-                capture.setCodec(engine.sourceVideoCodecName)
-                // Long enough for the prime, the start, and the 5 s from the
-                // start that vlead_min skips, with ten seconds of it measured.
-                avCaptureTask = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(18))
-                    if !Task.isCancelled { self?.finishAVCapture() }
-                }
-            }
-            if joinsWirelessAudio && isOnSoftwareRoute {
-                // The software backend renders on a sample-buffer synchronizer
-                // with no player to wait on the route, so hold the mounted,
-                // paused session for the receiver's latency. A live source keeps
-                // filling while paused, so when the caller's play() starts the
-                // clock the audio renderer already has that much queued and the
-                // receiver starts in sync instead of catching up.
-                try? await Task.sleep(for: .seconds(Self.wirelessAudioPrimeSeconds()))
-            }
-        } catch {
-            // The caller left the slot / retuned while the load was in flight.
-            // Rethrow untouched so the type survives; wrapping it in a
-            // PlayerError makes it indistinguishable from a real failure.
-            if isCancellationError(error) { throw error }
-            let pe = loadFailure(from: error)
-            errorSubject.send(pe)
-            throw pe
-        }
-    }
-
-    /// Whether audio is leaving this device for an AirPlay receiver.
-    private static func isWirelessAudioRoute() -> Bool {
-        AVAudioSession.sharedInstance().currentRoute.outputs.contains { $0.portType == .airPlay }
-    }
-
-    /// How long a software-route live join holds for a wireless receiver: the
-    /// route's own reported latency, bounded so a route that reports nothing
-    /// useful still gets the typical two seconds and a bad reading cannot
-    /// stall the join.
-    private static func wirelessAudioPrimeSeconds() -> Double {
-        let reported = AVAudioSession.sharedInstance().outputLatency
-        guard reported > 0.2 else { return 2.0 }
-        return min(max(reported, 1.0), 3.0)
-    }
-
-    /// Which path `loadLive` will take for this URL. Single source of truth: the
-    /// load itself routes through this, so live-join telemetry can tag the real
-    /// decision instead of re-deriving the predicate and drifting from it.
-    ///
-    /// This is the distinction that decides whether AetherEngine's
-    /// `LoadOptions.liveJoinProfile` (`.fastZap`) can do anything at all: the
-    /// engine reads it only when building the loopback segment producer, so it
-    /// is inert on `.nativeHLS`.
-    static func liveRoute(for url: URL, forceEngineDemux: Bool) -> LiveJoinRoute {
-        (isHLSURL(url) && !forceEngineDemux) ? .nativeHLS : .loopback
-    }
-
-    /// Whether this live source has to take the deinterlacing path.
-    ///
-    /// Reads `rivuletLiveScanType`, which `PlexLiveTVProvider` puts on the URL from the tune.
-    /// A missing scan type means no: software decode of 4K60 HEVC drops ~14 fps on an
-    /// Apple TV 4K (2nd gen).
-    static func needsDeinterlacing(_ url: URL) -> Bool {
-        guard let scan = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "rivuletLiveScanType" })?.value?
-            .lowercased() else { return false }
-        return scan != "progressive"
-    }
-
-    private static func isHLSURL(_ url: URL) -> Bool {
-        if url.pathExtension.lowercased() == "m3u8" { return true }
-        let text = url.absoluteString.lowercased()
-        return text.contains(".m3u8") || text.contains("format=hls")
-    }
-
     /// ML upscaling of SDR below 1080p (#846); absent = off.
     static let upscaleKey = "upscaleLowResolution"
 
@@ -1017,22 +771,6 @@ final class AetherPlayer: PlayerProtocol {
             return stored == 0 ? nil : stored
         }
         return Locale.current.region?.identifier == "AU" ? 801 : nil
-    }
-
-    /// The user's saved audio-language intent (ISO code), if any.
-    private static func livePreferredAudioLanguages() -> [String] {
-        let lang = TrackIntentStore.effectiveAudioIntent.language
-        return lang.isEmpty || lang == TrackLanguage.original ? [] : [lang]
-    }
-
-    /// The user's saved subtitle-language intent (ISO code) when subtitles
-    /// are enabled; empty (subtitles off) otherwise.
-    private static func livePreferredSubtitleLanguages() -> [String] {
-        if case .track(let language, _, _, _) = TrackIntentStore.subtitleIntent ?? .off,
-           !language.isEmpty {
-            return [language]
-        }
-        return []
     }
 
     func load(
@@ -1271,10 +1009,7 @@ final class AetherPlayer: PlayerProtocol {
         userIntendsToPlay = false
         stack = nil
         partIndex = 0
-        finishAVCapture()
         dropFrameExtractor()
-        seekableCancellable = nil
-        itemSeekableWindow = nil
         engine.stop(resetDisplayCriteria: resetDisplayCriteria)
     }
 
@@ -1423,28 +1158,8 @@ final class AetherPlayer: PlayerProtocol {
 
     /// A snapshot of the live window. Cheap: these are the clock's own
     /// published values, which the engine keeps current even while paused.
-    ///
-    /// Direct HLS is the exception: there the engine publishes an unbounded
-    /// `0...edge` (AVPlayer clamps seeks itself), which would offer media the
-    /// origin evicted long ago. The window comes from the AVPlayer item, on the
-    /// same axis (the engine applies no playlist shift on that route), and one
-    /// no deeper than the playlist's live holdback is no window at all.
     var liveTimeshift: LiveTimeshift {
         let clock = engine.clock
-        if engine.isLive, engine.videoRoute == .remoteBypass {
-            guard let window = remoteLiveWindow, window.isSeekable else {
-                return LiveTimeshift(seekableRange: nil, edgeTime: clock.liveEdgeTime, playhead: clock.currentTime,
-                                     behindLiveSeconds: 0, isAtLiveEdge: true)
-            }
-            let playhead = clock.currentTime
-            return LiveTimeshift(
-                seekableRange: window.lowerBound...window.upperBound,
-                edgeTime: window.upperBound,
-                playhead: playhead,
-                behindLiveSeconds: max(0, window.upperBound - playhead),
-                isAtLiveEdge: window.isAtLiveEdge(playhead)
-            )
-        }
         return LiveTimeshift(
             seekableRange: clock.seekableLiveRange,
             edgeTime: clock.liveEdgeTime,
@@ -1469,10 +1184,7 @@ final class AetherPlayer: PlayerProtocol {
     func seekLive(to sessionSeconds: Double) async -> Bool {
         let shift = liveTimeshift
         guard let range = shift.seekableRange else { return false }
-        // On direct HLS, clear of the oldest segment: the next playlist refresh
-        // may evict it before the seek lands.
-        let floor = remoteLiveWindow.map { $0.seekTarget($0.lowerBound) } ?? range.lowerBound
-        let target = min(max(sessionSeconds, floor), shift.edgeTime)
+        let target = min(max(sessionSeconds, range.lowerBound), shift.edgeTime)
         if shift.edgeTime - target < 1 {
             await engine.seekToLiveEdge()
         } else {
@@ -1491,15 +1203,6 @@ final class AetherPlayer: PlayerProtocol {
     /// remote-HLS bypass, or across a channel change.
     func liveThumbnail(atSessionSeconds sessionSeconds: Double, maxWidth: Int = 320) async -> CGImage? {
         await engine.liveScrubThumbnail(atSessionSeconds: sessionSeconds, maxWidth: maxWidth)
-    }
-
-    /// The AVPlayer item's seekable window, mirrored by KVO: the getter is a
-    /// sync XPC round trip to mediaserverd and this is read on every scrub tick.
-    private var itemSeekableWindow: LiveSeekableWindow?
-    private var seekableCancellable: AnyCancellable?
-
-    private var remoteLiveWindow: LiveSeekableWindow? {
-        engine.videoRoute == .remoteBypass ? itemSeekableWindow : nil
     }
 
     /// True once the current load has its first frame on screen (an audio-only
@@ -1538,9 +1241,7 @@ final class AetherPlayer: PlayerProtocol {
         engine.setAudioDelay(AudioSync.seconds())
     }
 
-    /// True while the software backend is serving the session. Live joins use
-    /// it: that backend has no player of its own to ride out a wireless audio
-    /// route's start-up latency (see `loadLive`).
+    /// True while the software backend is serving the session.
     var isOnSoftwareRoute: Bool { engine.videoRoute == .software }
 
     // MARK: - Tracks

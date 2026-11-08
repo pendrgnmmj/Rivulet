@@ -157,10 +157,6 @@ private struct IOSPlexActionHost: ViewModifier {
     private func playExtra(_ extra: MediaItemDetail.Extra) {
         let ref = MediaItemRef(providerID: extra.providerID, itemID: extra.id)
         guard IOSPlaybackGate.canPlay(ref), preparingID == nil else { return }
-        guard ref.providerID.hasPrefix("plex:") else {
-            playProviderExtra(ref)
-            return
-        }
         guard serverIsKnown(ref) else { return }
         preparingID = extra.id
         Task {
@@ -170,21 +166,6 @@ private struct IOSPlexActionHost: ViewModifier {
                                         duration: extra.duration.map { Int($0 * 1000) })
                 clip.serverID = ref.plexServerID
                 playback.play(try await plex.playback(for: clip))
-            } catch let error where isCancellationError(error) {
-            } catch {
-                failure = (String(localized: "Couldn't Play"), error.localizedDescription)
-            }
-        }
-    }
-
-    /// An extra off Plex is a library item of its own server.
-    private func playProviderExtra(_ ref: MediaItemRef) {
-        guard let provider = MediaProviderRegistry.shared.provider(for: ref.providerID) else { return }
-        preparingID = ref.itemID
-        Task {
-            defer { preparingID = nil }
-            do {
-                playback.play(try await provider.fullDetail(for: ref).item)
             } catch let error where isCancellationError(error) {
             } catch {
                 failure = (String(localized: "Couldn't Play"), error.localizedDescription)

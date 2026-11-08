@@ -97,28 +97,28 @@ final class IOSFixPassTests: XCTestCase {
 
     func test_hero_deduplicated_sameTitleOnTwoServersIsOneSlide_theFirstCopy() {
         let selected = item("p1", provider: "plex:a", title: "Dune", year: 2021, ids: ["tmdb": "438631", "plex": "plex://movie/x"])
-        let other = item("j1", provider: "jellyfin:s", title: "Dune", year: 2021, ids: ["tmdb": "438631"])
-        let different = item("j2", provider: "jellyfin:s", title: "Heat", year: 1995, ids: ["tmdb": "949"])
+        let other = item("j1", provider: "plex:s", title: "Dune", year: 2021, ids: ["tmdb": "438631"])
+        let different = item("j2", provider: "plex:s", title: "Heat", year: 1995, ids: ["tmdb": "949"])
         XCTAssertEqual(HomeHero.deduplicated([selected, other, different]).map(\.ref.itemID), ["p1", "j2"])
     }
 
     func test_hero_deduplicated_withoutSharedIds_matchesOnKindTitleAndYear() {
         let a = item("p1", title: "The  Dune", year: 2021)
-        let b = item("j1", provider: "jellyfin:s", title: "the dune", year: 2021)
-        let otherYear = item("j2", provider: "jellyfin:s", title: "The Dune", year: 1984)
+        let b = item("j1", provider: "plex:s", title: "the dune", year: 2021)
+        let otherYear = item("j2", provider: "plex:s", title: "The Dune", year: 1984)
         XCTAssertEqual(HomeHero.deduplicated([a, b, otherYear]).map(\.ref.itemID), ["p1", "j2"])
     }
 
     func test_hero_deduplicated_aMovieAndAShowSharingANumberAreDifferentTitles() {
         let movie = item("m", kind: .movie, ids: ["tmdb": "1"])
-        let show = item("s", kind: .show, provider: "jellyfin:s", ids: ["tmdb": "1"])
+        let show = item("s", kind: .show, provider: "plex:s", ids: ["tmdb": "1"])
         XCTAssertEqual(HomeHero.deduplicated([movie, show]).count, 2)
     }
 
     @MainActor
     func test_heroSource_dedupesAcrossServers() async {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
         func withArt(_ base: MediaItem) -> MediaItem {
             MediaItem(ref: base.ref, kind: base.kind, title: base.title, sortTitle: nil, overview: nil, year: base.year, runtime: nil,
                       parentRef: nil, grandparentRef: nil, episodeNumber: nil, seasonNumber: nil, childProgress: nil,
@@ -127,8 +127,8 @@ final class IOSFixPassTests: XCTestCase {
                       parentArtwork: nil, grandparentArtwork: nil, externalIDs: base.externalIDs)
         }
         plex.ownedItemsResult = [withArt(item("p1", title: "Dune", ids: ["tmdb": "5"]))]
-        jf.ownedItemsResult = [withArt(item("j1", provider: "jellyfin:s", title: "Dune", ids: ["tmdb": "5"])),
-                               withArt(item("j2", provider: "jellyfin:s", title: "Heat", ids: ["tmdb": "6"]))]
+        jf.ownedItemsResult = [withArt(item("j1", provider: "plex:s", title: "Dune", ids: ["tmdb": "5"])),
+                               withArt(item("j2", provider: "plex:s", title: "Heat", ids: ["tmdb": "6"]))]
         let sources = HomeHeroSources()
         sources.trendingTitles = { (1...5).map { TitleMatch(kind: .movie, externalIDs: ["tmdb": "\($0)"], plexGUID: nil) } }
         let items = await sources.trending(providers: [plex, jf])
@@ -149,7 +149,7 @@ final class IOSFixPassTests: XCTestCase {
         XCTAssertEqual(route("plex:old"), .selected, "an id the selected server had before a URL change still routes to it")
         XCTAssertEqual(route("plex:extra"), .extra("extra"))
         XCTAssertEqual(route("plex:gone"), .unknown, "an extra server that left must not fall back to the selected one")
-        XCTAssertNil(route("jellyfin:s"))
+        XCTAssertNil(route("other:s"))
     }
 
     @MainActor
@@ -175,9 +175,9 @@ final class IOSFixPassTests: XCTestCase {
     func test_loader_aFailingSelectedServerDoesNotBlankTheOthers() async throws {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.librariesError = MediaProviderError.unreachable
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
-        jf.libraryList = [library("m", provider: "jellyfin:s")]
-        jf.hubsByLibrary = ["m": [MediaHub(id: "m.recentlyAdded", providerID: "jellyfin:s", title: "R", style: .shelf, items: [item("j1", provider: "jellyfin:s")])]]
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
+        jf.libraryList = [library("m", provider: "plex:s")]
+        jf.hubsByLibrary = ["m": [MediaHub(id: "m.recentlyAdded", providerID: "plex:s", title: "R", style: .shelf, items: [item("j1", provider: "plex:s")])]]
         let loader = HomeFeedLoader()
         var latest: HomeFeed.Assembled?
         loader.onChange = { latest = $0 }
@@ -185,7 +185,7 @@ final class IOSFixPassTests: XCTestCase {
         try await loader.load(selected: plex, secondary: [jf])
         await loader.finishSecondary()
 
-        XCTAssertEqual(latest?.shelves.map(\.id), ["jellyfin:s|m.recentlyAdded"])
+        XCTAssertEqual(latest?.shelves.map(\.id), ["plex:s|m.recentlyAdded"])
         XCTAssertEqual(latest?.libraries.map(\.id), ["m"])
         XCTAssertEqual(latest?.failures.keys.sorted(), ["plex:a"], "the selected server's error is for its part only")
     }
@@ -194,7 +194,7 @@ final class IOSFixPassTests: XCTestCase {
     func test_loader_aFailureClearsWhenTheServerAnswersAgain() async throws {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.librariesError = MediaProviderError.unreachable
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
         let loader = HomeFeedLoader()
         var latest: HomeFeed.Assembled?
         loader.onChange = { latest = $0 }
@@ -214,14 +214,14 @@ final class IOSFixPassTests: XCTestCase {
     func test_loader_aFailingSecondaryIsReportedToo() async throws {
         let plex = StubMediaProvider(id: "plex:a", kind: .plex)
         plex.libraryList = [library("1", provider: "plex:a")]
-        let jf = StubMediaProvider(id: "jellyfin:s", kind: .jellyfin)
+        let jf = StubMediaProvider(id: "plex:s", kind: .plex)
         jf.librariesError = MediaProviderError.unauthorized
         let loader = HomeFeedLoader()
         var latest: HomeFeed.Assembled?
         loader.onChange = { latest = $0 }
         try await loader.load(selected: plex, secondary: [jf])
         await loader.finishSecondary()
-        XCTAssertEqual(latest?.failures.keys.sorted(), ["jellyfin:s"])
+        XCTAssertEqual(latest?.failures.keys.sorted(), ["plex:s"])
     }
 
     // MARK: - Watchlist for an episode or season
